@@ -29,7 +29,7 @@ namespace ExtendNetease_DGJModule
             catch { this.PluginAuth = "起名废丶西井"; }
             this.PluginCont = "847529602@qq.com";
             this.PluginDesc = "可以添加歌单和登录网易云喵~";
-            this.PluginVer = NeteaseMusicApi.NeteaseMusicApiVersion;
+            this.PluginVer = NeteaseMusicApi.Version;
             base.Start();
         }
 
@@ -102,6 +102,13 @@ namespace ExtendNetease_DGJModule
             }
             object searchModules = dgjWindow.GetType().GetProperty("SearchModules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(dgjWindow);
             ObservableCollection<SearchModule> searchModules2 = (ObservableCollection<SearchModule>)searchModules.GetType().GetProperty("Modules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(searchModules);
+            SearchModule nullModule = (SearchModule)searchModules.GetType().GetProperty("NullModule", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance).GetValue(searchModules);
+            SearchModule lwlModule = searchModules2.FirstOrDefault(p => p != nullModule);
+            if (lwlModule != null)
+            {
+                Action<string> logHandler = (Action<string>)lwlModule.GetType().GetProperty("_log", BindingFlags.GetProperty | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(lwlModule);
+                ExtendNeteaseModule.SetLogHandler(logHandler);
+            }
             searchModules2.Insert(2, ExtendNeteaseModule);
         }
     }
@@ -218,8 +225,13 @@ namespace ExtendNetease_DGJModule
             string authorName;
             try { authorName = BiliUtils.GetUserNameByUserId(35744708); }
             catch { authorName = "起名废丶西井"; }
-            SetInfo("本地网易云音乐", authorName, "847529602@qq.com", "1.0.1", "若有会员/音乐包,登录后可以点320Kbps的音乐");
+            SetInfo("本地网易云音乐", authorName, "847529602@qq.com", "1.0.2", "若有会员/音乐包,登录后可以点320Kbps的音乐");
             this.GetType().GetProperty("IsPlaylistSupported", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(this, true); // Enable Supporting Playlist
+        }
+
+        public void SetLogHandler(Action<string> logHandler)
+        {
+            this.GetType().GetProperty("_log", BindingFlags.SetProperty | BindingFlags.NonPublic | BindingFlags.Instance).SetValue(this, logHandler);
         }
 
         protected override DownloadStatus Download(SongItem item)
@@ -230,7 +242,9 @@ namespace ExtendNetease_DGJModule
         protected override string GetDownloadUrl(SongItem songInfo)
         {
             long songId = long.Parse(songInfo.SongId);
-            IDictionary<long, DownloadSongInfo> dss = MainConfig.Instance.LoginSession.LoginStatus ? NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.LoginSession, MainConfig.Instance.Quality, songIds: songId) : NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.Quality, songIds: songId);
+            IDictionary<long, DownloadSongInfo> dss = MainConfig.Instance.LoginSession.LoginStatus ?
+                NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.LoginSession, MainConfig.Instance.Quality, songIds: songId) :
+                NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.Quality, songIds: songId);
             dss.TryGetValue(songId, out DownloadSongInfo ds);
             string url = ds?.Url;
             if (!string.IsNullOrEmpty(url) && songInfo.UserName == "空闲歌单" && songInfo.Lyric.LrcWord.Count < 1)
@@ -276,7 +290,9 @@ namespace ExtendNetease_DGJModule
             NeteaseMusic.SongInfo[] songs;
             if (long.TryParse(keyword, out long id))
             {
-                songs = NeteaseMusicApi.GetPlayList(id);
+                songs = MainConfig.Instance.LoginSession.LoginStatus ? 
+                    NeteaseMusicApi.GetPlayList(MainConfig.Instance.LoginSession, id) : 
+                    NeteaseMusicApi.GetPlayList(id);
             }
             else
             {
@@ -287,7 +303,9 @@ namespace ExtendNetease_DGJModule
                     id = j["result"]["playlists"].Select(p => p["id"].ToObject<int>()).FirstOrDefault();
                     if (id > 0)
                     {
-                        songs = NeteaseMusicApi.GetPlayList(id);
+                        songs = MainConfig.Instance.LoginSession.LoginStatus ?
+                            NeteaseMusicApi.GetPlayList(MainConfig.Instance.LoginSession, id) :
+                            NeteaseMusicApi.GetPlayList(id);
                     }
                     else
                     {
@@ -317,6 +335,7 @@ namespace ExtendNetease_DGJModule
 
         protected override SongInfo Search(string keyword)
         {
+            Log("喵喵喵喵喵");
             try
             {
                 NeteaseMusic.SongInfo[] songs = NeteaseMusicApi.SearchSongs(keyword, 1);
@@ -333,6 +352,10 @@ namespace ExtendNetease_DGJModule
                         Log($"获取歌词失败了喵:{Ex.Message}");
                     }
                     return new SongInfo(this, song.Id.ToString(), song.Name, song.Artists.Select(p => p.Name).ToArray(), lyric?.GetLyricText());
+                }
+                else
+                {
+                    Log($"{song.ArtistNames} - {song.Name} 暂无版权喵");
                 }
             }
             catch (Exception Ex)

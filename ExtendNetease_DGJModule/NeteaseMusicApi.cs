@@ -65,13 +65,13 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
 
     public static class NeteaseMusicApi
     {
-        public static string NeteaseMusicApiVersion { get; }
+        public static string Version { get; }
 
-        public static string DefaultUserAgent { get; } = $"DGJModule.NeteaseMusicApi/{NeteaseMusicApiVersion} .NET CLR v4.0.30319";
+        public static string DefaultUserAgent { get; } = $"DGJModule.NeteaseMusicApi/{Version} .NET CLR v4.0.30319";
 
         static NeteaseMusicApi()
         {
-            NeteaseMusicApiVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+            Version = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
         }
 
         internal static class CryptoHelper
@@ -242,12 +242,12 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// <param name="offset">偏移量</param>
         public static SongInfo[] SearchSongs(string keyWords, int pageSize = 30, int offset = 0)
         {
-            string json = Search(keyWords, SearchType.Song, 30, 0);
+            string json = Search(keyWords, SearchType.Song, pageSize, offset);
             JObject j = JObject.Parse(json);
             if (j["code"].ToObject<int>() == 200)
             {
                 SongInfo[] result = j["result"]["songs"].Select(p => new SongInfo(p)).ToArray();
-                IDictionary<long, bool> canPlayDic = CheckMusicStatus(songIds: result.Select(p => p.Id).ToArray());
+                IDictionary<long, bool> canPlayDic = CheckMusicStatus(result.Select(p => p.Id).ToArray());
                 foreach (SongInfo song in result)
                 {
                     if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
@@ -270,26 +270,18 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// <param name="bitRate">比特率</param>
         /// <param name="songIds">音乐IDs</param>
         /// <returns></returns>
-        public static IDictionary<long, bool> CheckMusicStatus(int bitRate = 999000, params long[] songIds)
+        public static IDictionary<long, bool> CheckMusicStatus(params long[] songIds)
+            => CheckMusicStatus(null, songIds);
+        /// <summary>
+        /// 检查给定ID对应的音乐有无版权
+        /// </summary>
+        /// <param name="bitRate">比特率</param>
+        /// <param name="songIds">音乐IDs</param>
+        /// <returns></returns>
+        public static IDictionary<long, bool> CheckMusicStatus(NeteaseSession session, params long[] songIds)
         {
-            IDictionary<string, object> data = new Dictionary<string, object>
-            {
-                ["ids"] = songIds,
-                ["br"] = bitRate
-            };
-            CryptoHelper.Encrypted encrypted = CryptoHelper.WebApiEncrypt(data);
-            string json = HttpHelper.HttpPost("https://music.163.com/weapi/song/enhance/player/url", encrypted.GetFormdata(), userAgent: DefaultUserAgent);
-            JObject j = JObject.Parse(json);
-            if (j["code"].ToObject<int>() == 200)
-            {
-                return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => p["code"].ToObject<int>() == 200);
-            }
-            else
-            {
-                NotImplementedException exception = new NotImplementedException($"未知的服务器返回");
-                exception.Data.Add("Response", j.ToString());
-                throw exception;
-            }
+            JObject j = _GetPlayerUrl(session, Quality.SuperQuality, songIds);
+            return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => p["code"].ToObject<int>() == 200);
         }
         /// <summary>
         /// 批量获取单曲下载链接
@@ -305,10 +297,22 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// <param name="songIds">单曲IDs</param>
         public static IDictionary<long, DownloadSongInfo> GetSongsUrl(NeteaseSession session, Quality bitRate = Quality.SuperQuality, params long[] songIds)
         {
+            JObject j = _GetPlayerUrl(session, bitRate, songIds);
+            return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => new DownloadSongInfo(p["id"].ToObject<int>(), p["br"].ToObject<int>(), p["url"].ToString(), p["type"].ToString()));
+        }
+        /// <summary>
+        /// 获取版权以及下载链接
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="bitRate"></param>
+        /// <param name="songIds"></param>
+        /// <returns></returns>
+        private static JObject _GetPlayerUrl(NeteaseSession session, Quality bitRate = Quality.SuperQuality, params long[] songIds)
+        {
             IDictionary<string, object> data = new Dictionary<string, object>
             {
                 ["ids"] = songIds,
-                ["br"] = bitRate
+                ["br"] = (int)bitRate
             };
             CryptoHelper.Encrypted encrypted = CryptoHelper.WebApiEncrypt(data);
             string json = session == null ? HttpHelper.HttpPost("https://music.163.com/weapi/song/enhance/player/url", encrypted.GetFormdata(), userAgent: DefaultUserAgent) :
@@ -316,7 +320,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             JObject j = JObject.Parse(json);
             if (j["code"].ToObject<int>() == 200)
             {
-                return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => new DownloadSongInfo(p["id"].ToObject<int>(), p["br"].ToObject<int>(), p["url"].ToString(), p["type"].ToString()));
+                return j;
             }
             else
             {
@@ -370,6 +374,13 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// <exception cref="NotImplementedException"/>
         /// <param name="id">歌单Id</param>
         public static SongInfo[] GetPlayList(long id)
+            => GetPlayList(null, id);
+        /// <summary>
+        /// 获取歌单内的所有单曲
+        /// </summary>
+        /// <exception cref="NotImplementedException"/>
+        /// <param name="id">歌单Id</param>
+        public static SongInfo[] GetPlayList(NeteaseSession session, long id)
         {
             IDictionary<string, object> data = new Dictionary<string, object>()
             {
@@ -383,7 +394,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             if (j["code"].ToObject<int>() == 200)
             {
                 SongInfo[] result = j["playlist"]["tracks"].Select(p => new SongInfo(p)).ToArray();
-                IDictionary<long, bool> canPlayDic = CheckMusicStatus(songIds: result.Select(p => p.Id).ToArray());
+                IDictionary<long, bool> canPlayDic = CheckMusicStatus(session, result.Select(p => p.Id).ToArray());
                 foreach (SongInfo song in result)
                 {
                     if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
@@ -742,6 +753,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         public long Id { get; }
         public string Name { get; }
         public ArtistInfo[] Artists { get; }
+        public string ArtistNames => Artists == null ? null : string.Join(",", Artists.Select(p => p.Name));
         public AlbumInfo Album { get; }
         public TimeSpan Duration { get; }
         public bool CanPlay { get; set; }
