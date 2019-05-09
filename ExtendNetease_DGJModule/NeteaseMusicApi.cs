@@ -241,13 +241,21 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// <param name="pageSize">本次搜索返回的实例个数上限</param>
         /// <param name="offset">偏移量</param>
         public static SongInfo[] SearchSongs(string keyWords, int pageSize = 30, int offset = 0)
+            => SearchSongs(null, keyWords, pageSize, offset);
+        /// <summary>
+        /// 按给定的关键词搜索单曲
+        /// </summary>
+        /// <param name="keyWords">关键词</param>
+        /// <param name="pageSize">本次搜索返回的实例个数上限</param>
+        /// <param name="offset">偏移量</param>
+        public static SongInfo[] SearchSongs(NeteaseSession session, string keyWords, int pageSize = 30, int offset = 0)
         {
             string json = Search(keyWords, SearchType.Song, pageSize, offset);
             JObject j = JObject.Parse(json);
             if (j["code"].ToObject<int>() == 200)
             {
                 SongInfo[] result = j["result"]["songs"].Select(p => new SongInfo(p)).ToArray();
-                IDictionary<long, bool> canPlayDic = CheckMusicStatus(result.Select(p => p.Id).ToArray());
+                IDictionary<long, bool> canPlayDic = CheckMusicStatus(session, result.Select(p => p.Id).ToArray());
                 foreach (SongInfo song in result)
                 {
                     if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
@@ -348,8 +356,8 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             JObject j = JObject.Parse(json);
             if (j["code"].ToObject<int>() == 200)
             {
-                string lyricText = j["lrc"]?["lyric"].ToString();
-                string translatedLyricText = j["tlyric"]?["lyric"].ToString();
+                string lyricText = j["lrc"]?["lyric"]?.ToString();
+                string translatedLyricText = j["tlyric"]?["lyric"]?.ToString();
                 LyricInfo lyric = null;
                 if (!string.IsNullOrEmpty(lyricText))
                 {
@@ -728,6 +736,9 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
                         break;
                     }
                 case 501:
+                    {
+                        throw new ArgumentException("账号不存在");
+                    }
                 case 502:
                 case 509:
                     {

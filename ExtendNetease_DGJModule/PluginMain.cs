@@ -225,7 +225,7 @@ namespace ExtendNetease_DGJModule
             string authorName;
             try { authorName = BiliUtils.GetUserNameByUserId(35744708); }
             catch { authorName = "起名废丶西井"; }
-            SetInfo("本地网易云音乐", authorName, "847529602@qq.com", "1.0.2", "若有会员/音乐包,登录后可以点320Kbps的音乐");
+            SetInfo("本地网易云音乐", authorName, "847529602@qq.com", NeteaseMusicApi.Version, "若有会员/音乐包,登录后可以点320Kbps的音乐");
             this.GetType().GetProperty("IsPlaylistSupported", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(this, true); // Enable Supporting Playlist
         }
 
@@ -335,10 +335,11 @@ namespace ExtendNetease_DGJModule
 
         protected override SongInfo Search(string keyword)
         {
-            Log("喵喵喵喵喵");
             try
             {
-                NeteaseMusic.SongInfo[] songs = NeteaseMusicApi.SearchSongs(keyword, 1);
+                NeteaseMusic.SongInfo[] songs = MainConfig.Instance.LoginSession.LoginStatus ?
+                    NeteaseMusicApi.SearchSongs(MainConfig.Instance.LoginSession, keyword, 1) :
+                    NeteaseMusicApi.SearchSongs(keyword, 1);
                 NeteaseMusic.SongInfo song = songs.FirstOrDefault();
                 if (song?.CanPlay == true)
                 {
@@ -355,7 +356,7 @@ namespace ExtendNetease_DGJModule
                 }
                 else
                 {
-                    Log($"{song.ArtistNames} - {song.Name} 暂无版权喵");
+                    Log($"{song.ArtistNames} - {song.Name} : 暂无版权喵");
                 }
             }
             catch (Exception Ex)
