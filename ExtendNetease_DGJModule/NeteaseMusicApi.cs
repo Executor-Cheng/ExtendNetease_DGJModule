@@ -306,7 +306,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         public static IDictionary<long, DownloadSongInfo> GetSongsUrl(NeteaseSession session, Quality bitRate = Quality.SuperQuality, params long[] songIds)
         {
             JObject j = _GetPlayerUrl(session, bitRate, songIds);
-            return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => new DownloadSongInfo(p["id"].ToObject<int>(), p["br"].ToObject<int>(), p["url"].ToString(), p["type"].ToString()));
+            return j["data"].ToDictionary(p => p["id"].ToObject<long>(), p => new DownloadSongInfo(p["id"].ToObject<long>(), p["br"].ToObject<int>(), bitRate, p["url"].ToString(), p["type"].ToString()));
         }
         /// <summary>
         /// 获取版权以及下载链接
@@ -769,7 +769,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         public TimeSpan Duration { get; }
         public bool CanPlay { get; set; }
         public bool NeedPaymentToDownload { get; } // Fee == 8 | > 0
-        public SongInfo(int id, string name, ArtistInfo[] artists, AlbumInfo album, TimeSpan duration, bool needPaymentToDownload)
+        public SongInfo(long id, string name, ArtistInfo[] artists, AlbumInfo album, TimeSpan duration, bool needPaymentToDownload)
         {
             Id = id;
             Name = name;
@@ -778,7 +778,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             Duration = duration;
             NeedPaymentToDownload = needPaymentToDownload;
         }
-        public SongInfo(JToken jt) : this(jt["id"].ToObject<int>(), jt["name"].ToString(), (jt["artists"] ?? jt["ar"]).Select(p => new ArtistInfo(p)).ToArray(), new AlbumInfo(jt["album"] ?? jt["al"]), TimeSpan.FromMilliseconds((jt["duration"] ?? jt["dt"]).ToObject<int>()), jt["fee"].ToObject<bool>())
+        public SongInfo(JToken jt) : this(jt["id"].ToObject<long>(), jt["name"].ToString(), (jt["artists"] ?? jt["ar"]).Select(p => new ArtistInfo(p)).ToArray(), new AlbumInfo(jt["album"] ?? jt["al"]), TimeSpan.FromMilliseconds((jt["duration"] ?? jt["dt"]).ToObject<double>()), jt["fee"].ToObject<bool>())
         {
 
         }
@@ -788,12 +788,12 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
     {
         public long Id { get; }
         public string Name { get; }
-        public ArtistInfo(int id, string name)
+        public ArtistInfo(long id, string name)
         {
             Id = id;
             Name = name;
         }
-        public ArtistInfo(JToken jt) : this (jt["id"].ToObject<int>(), jt["name"].ToString())
+        public ArtistInfo(JToken jt) : this (jt["id"].ToObject<long>(), jt["name"].ToString())
         {
 
         }
@@ -805,14 +805,14 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         public string Name { get; }
         public DateTime PublishTime { get; }
         public int Count { get; }
-        public AlbumInfo(int id, string name, DateTime publishTime, int count)
+        public AlbumInfo(long id, string name, DateTime publishTime, int count)
         {
             Id = id;
             Name = name;
             PublishTime = publishTime;
             Count = count;
         }
-        public AlbumInfo(JToken jt) : this(jt["id"].ToObject<int>(), jt["name"].ToString(), Utils.UnixTimeStamp2DateTime(jt["publishTime"]?.ToObject<long>() ?? 0), jt["size"]?.ToObject<int>() ?? 0)
+        public AlbumInfo(JToken jt) : this(jt["id"].ToObject<long>(), jt["name"].ToString(), Utils.UnixTimeStamp2DateTime(jt["publishTime"]?.ToObject<long>() ?? 0), jt["size"]?.ToObject<int>() ?? 0)
         {
 
         }
@@ -822,16 +822,40 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
     {
         public long Id { get; }
         public int Bitrate { get; }
+        public Quality RequestQuality { get; }
+        public Quality Quality { get; }
         public string Url { get; }
         public string Type { get; }
-        public DownloadSongInfo(int id, int bitrate, string url, string type)
+        public DateTime ExpireTime { get; }
+        public DownloadSongInfo(long id, int bitrate, Quality requestQuality, string url, string type)
         {
             Id = id;
             Bitrate = bitrate;
+            RequestQuality = requestQuality;
+            if (bitrate > 0) // For self uploaded musics, bitrate may not be one of the Quality Enum values
+            {
+                if (bitrate <= (int)Quality.LowQuality)
+                {
+                    Quality = Quality.LowQuality;
+                }
+                else if (bitrate <= (int)Quality.MediumQuality)
+                {
+                    Quality = Quality.MediumQuality;
+                }
+                else if (bitrate <= (int)Quality.HighQuality)
+                {
+                    Quality = Quality.HighQuality;
+                }
+                else
+                {
+                    Quality = Quality.SuperQuality;
+                }
+            }
             Url = url;
             Type = type;
+            ExpireTime = DateTime.Now.AddMinutes(20);
         }
-        public DownloadSongInfo(JToken jt) : this(jt["id"].ToObject<int>(), jt["br"].ToObject<int>(), jt["url"].ToString(), jt["type"].ToString())
+        public DownloadSongInfo(JToken jt, Quality requestQuality) : this(jt["id"].ToObject<long>(), jt["br"].ToObject<int>(), requestQuality, jt["url"].ToString(), jt["type"].ToString())
         {
             
         }

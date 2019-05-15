@@ -219,7 +219,9 @@ namespace ExtendNetease_DGJModule
         }
 
         private IDictionary<long, LyricInfo> LyricCache { get; } = new Dictionary<long, LyricInfo>();
-        
+
+        private List<DownloadSongInfo> DownloadSongInfoCache { get; } = new List<DownloadSongInfo>();
+
         public ExtendNetease()
         {
             string authorName;
@@ -242,26 +244,40 @@ namespace ExtendNetease_DGJModule
         protected override string GetDownloadUrl(SongItem songInfo)
         {
             long songId = long.Parse(songInfo.SongId);
-            IDictionary<long, DownloadSongInfo> dss = MainConfig.Instance.LoginSession.LoginStatus ?
-                NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.LoginSession, MainConfig.Instance.Quality, songIds: songId) :
-                NeteaseMusicApi.GetSongsUrl(MainConfig.Instance.Quality, songIds: songId);
-            dss.TryGetValue(songId, out DownloadSongInfo ds);
-            string url = ds?.Url;
-            if (!string.IsNullOrEmpty(url) && songInfo.UserName == "空闲歌单" && songInfo.Lyric.LrcWord.Count < 1)
+            DownloadSongInfo ds = MainConfig.Instance.LoginSession.LoginStatus ?
+                _GetDownloadSongInfo(MainConfig.Instance.LoginSession, songId, MainConfig.Instance.Quality) :
+                _GetDownloadSongInfo(songId, MainConfig.Instance.Quality);
+            if (ds != null)
             {
-                try
+                if (ds.Type.ToLower() != "mp3")
                 {
-                    LyricInfo lyric = _GetLyric(songId);
-                    Lrc lrc = Lrc.InitLrc(lyric?.GetLyricText());
-                    Type songItemType = songInfo.GetType();
-                    songItemType.GetProperty("Lyric", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(songInfo, lrc);
+                    Log($"由于点歌姬目前只支持播放mp3格式,当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 格式:{ds.Type} 无法播放喵");
                 }
-                catch (Exception Ex)
+                else
                 {
-                    Log($"获取歌词失败了喵:{Ex.Message}");
+                    string url = ds.Url;
+                    if (!string.IsNullOrEmpty(url) && songInfo.UserName == "空闲歌单" && songInfo.Lyric.LrcWord.Count < 1)
+                    {
+                        try
+                        {
+                            LyricInfo lyric = _GetLyric(songId);
+                            Lrc lrc = Lrc.InitLrc(lyric?.GetLyricText());
+                            Type songItemType = songInfo.GetType();
+                            songItemType.GetProperty("Lyric", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(songInfo, lrc);
+                        }
+                        catch (Exception Ex)
+                        {
+                            Log($"获取歌词失败了喵:{Ex.Message}");
+                        }
+                    }
+                    return ds.Url;
                 }
             }
-            return ds?.Url;
+            else
+            {
+                Log($"获取下载链接失败了喵(服务器未返回下载链接)");
+            }
+            return null;
         }
 
         [Obsolete("Use GetLyricById instead", true)]
@@ -300,7 +316,7 @@ namespace ExtendNetease_DGJModule
                 JObject j = JObject.Parse(json);
                 if (j["code"].ToObject<int>() == 200)
                 {
-                    id = j["result"]["playlists"].Select(p => p["id"].ToObject<int>()).FirstOrDefault();
+                    id = j["result"]["playlists"].Select(p => p["id"].ToObject<long>()).FirstOrDefault();
                     if (id > 0)
                     {
                         songs = MainConfig.Instance.LoginSession.LoginStatus ?
@@ -374,6 +390,28 @@ namespace ExtendNetease_DGJModule
                 LyricCache[id] = lyric;
             }
             return LyricCache[id];
+        }
+
+        private DownloadSongInfo _GetDownloadSongInfo(long id, Quality quality, bool useCache = true)
+            => _GetDownloadSongInfo(null, id, quality, useCache);
+
+        private DownloadSongInfo _GetDownloadSongInfo(NeteaseSession session, long id, Quality quality, bool useCache = true)
+        {
+            DownloadSongInfo dsi;
+            lock (DownloadSongInfoCache)
+            {
+                DownloadSongInfoCache.RemoveAll(p => p.ExpireTime < DateTime.Now);
+                dsi = DownloadSongInfoCache.Find(p => p.Id == id && p.RequestQuality == quality);
+            }
+            if (!useCache || dsi == null)
+            {
+                IDictionary<long, DownloadSongInfo> dss = NeteaseMusicApi.GetSongsUrl(session, MainConfig.Instance.Quality, songIds: id);
+                if (dss.TryGetValue(id, out dsi))
+                {
+                    DownloadSongInfoCache.Add(dsi);
+                }
+            }
+            return dsi;
         }
     }
 }
