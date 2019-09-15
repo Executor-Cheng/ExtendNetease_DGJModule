@@ -11,7 +11,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using RSA = OpenSSL.Crypto.RSA;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Security;
 
 namespace ExtendNetease_DGJModule.NeteaseMusic
 {
@@ -65,22 +66,26 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
 
     public static class NeteaseMusicApi
     {
-        public static string Version { get; }
+        public static string Version { get; } = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
 
         public static string DefaultUserAgent { get; } = $"DGJModule.NeteaseMusicApi/{Version} .NET CLR v4.0.30319";
 
-        static NeteaseMusicApi()
-        {
-            Version = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
-        }
-
         internal static class CryptoHelper
         {
-            public static string PublicKey { get; } = "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ3\n7BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvakl\nV8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44o\nncaTWz7OBGLbCiK45wIDAQAB\n-----END PUBLIC KEY-----\n";
+            public static string PublicKey { get; } = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ3\n7BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvakl\nV8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44o\nncaTWz7OBGLbCiK45wIDAQAB";
 
             private static byte[] PresetKey { get; } = Encoding.ASCII.GetBytes("0CoJUm6Qyw8W8jud");
 
             private static byte[] IV { get; } = Encoding.ASCII.GetBytes("0102030405060708");
+
+            private static IBufferedCipher RsaEncrypter = CipherUtilities.GetCipher("RSA/ECB/NoPadding");
+
+            static CryptoHelper()
+            {
+                AsymmetricKeyParameter publicKey = PublicKeyFactory.CreateKey(Convert.FromBase64String(PublicKey));
+                RsaEncrypter.Init(true, publicKey);
+            }
+
             /// <summary>
             /// 生成由参数指定的字符集随机组成的具有指定长度的字符串
             /// </summary>
@@ -150,11 +155,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
 
             public static byte[] RsaEncrypt(byte[] toEncrypt)
             {
-                using (OpenSSL.Core.BIO bio = new OpenSSL.Core.BIO(PublicKey))
-                using (RSA rsa = RSA.FromPublicKey(bio))
-                {
-                    return rsa.PublicEncrypt(toEncrypt, RSA.Padding.None);
-                }
+                return RsaEncrypter.DoFinal(toEncrypt);
             }
 
             public static string MD5Encrypt(byte[] toEncrypt)
@@ -211,7 +212,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             return birthday.HasValue ? Utils.UnixTimeStamp2DateTime(birthday.Value) : default(DateTime);
         }
         /// <summary>
-        /// 按给定的信息执行搜索由于类型不定,本方法将返回json
+        /// 按给定的信息执行搜索
         /// <para>
         /// 由于类型不定,本方法将返回json
         /// </para>
@@ -397,26 +398,39 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
                 ["s"] = 8
             };
             CryptoHelper.Encrypted encrypted = CryptoHelper.WebApiEncrypt(data);
-            string json = HttpHelper.HttpPost("https://music.163.com/weapi/v3/playlist/detail", encrypted.GetFormdata(), userAgent: DefaultUserAgent);
+            string json = session == null ? HttpHelper.HttpPost("https://music.163.com/weapi/v3/playlist/detail", encrypted.GetFormdata(), userAgent: DefaultUserAgent) :
+                session.Session.HttpPost("https://music.163.com/weapi/v3/playlist/detail", encrypted.GetFormdata(), userAgent: DefaultUserAgent);
             JObject j = JObject.Parse(json);
-            if (j["code"].ToObject<int>() == 200)
+            int code = j["code"].ToObject<int>();
+            switch (code)
             {
-                SongInfo[] result = j["playlist"]["tracks"].Select(p => new SongInfo(p)).ToArray();
-                IDictionary<long, bool> canPlayDic = CheckMusicStatus(session, result.Select(p => p.Id).ToArray());
-                foreach (SongInfo song in result)
-                {
-                    if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
+                case 200:
                     {
-                        song.CanPlay = canPlay;
+                        SongInfo[] result = j["playlist"]["tracks"].Select(p => new SongInfo(p)).ToArray();
+                        IDictionary<long, bool> canPlayDic = CheckMusicStatus(session, result.Select(p => p.Id).ToArray());
+                        foreach (SongInfo song in result)
+                        {
+                            if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
+                            {
+                                song.CanPlay = canPlay;
+                            }
+                        }
+                        return result;
                     }
-                }
-                return result;
-            }
-            else
-            {
-                NotImplementedException exception = new NotImplementedException($"未知的服务器返回");
-                exception.Data.Add("Response", j.ToString());
-                throw exception;
+                case 401:
+                    {
+                        throw new InvalidOperationException("给定的歌单为私有歌单，非歌单所有者无权访问");
+                    }
+                case 404:
+                    {
+                        throw new ArgumentException("给定的歌单ID无效", nameof(id));
+                    }
+                default:
+                    {
+                        NotImplementedException exception = new NotImplementedException($"未知的服务器返回");
+                        exception.Data.Add("Response", j.ToString());
+                        throw exception;
+                    }
             }
         }
     }
@@ -725,33 +739,41 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         {
             JObject j = JObject.Parse(json);
             int code = j["code"].ToObject<int>();
-            switch (code)
+            try
             {
-                case 200:
-                    {
-                        UserName = j["profile"]["nickname"].ToString();
-                        UserId = j["profile"]["userId"].ToObject<int>();
-                        VipType = j["profile"]["vipType"].ToObject<int>();
-                        LoginStatus = true;
-                        break;
-                    }
-                case 501:
-                    {
-                        throw new ArgumentException("账号不存在");
-                    }
-                case 502:
-                case 509:
-                    {
-                        LoginStatus = false;
-                        throw new ArgumentException(j["msg"].ToString());
-                    }
-                default:
-                    {
-                        LoginStatus = false;
-                        NotImplementedException exception = new NotImplementedException($"未知的服务器返回");
-                        exception.Data.Add("Response", j.ToString());
-                        throw exception;
-                    }
+                switch (code)
+                {
+                    case 200:
+                        {
+                            UserName = j["profile"]["nickname"].ToString();
+                            UserId = j["profile"]["userId"].ToObject<int>();
+                            VipType = j["profile"]["vipType"].ToObject<int>();
+                            LoginStatus = true;
+                            break;
+                        }
+                    case 501:
+                        {
+                            throw new ArgumentException("账号不存在");
+                        }
+                    case 502:
+                    case 509:
+                        {
+                            LoginStatus = false;
+                            throw new ArgumentException(j["msg"].ToString());
+                        }
+                    default:
+                        {
+                            LoginStatus = false;
+                            NotImplementedException exception = new NotImplementedException($"未知的服务器返回");
+                            exception.Data.Add("Response", j.ToString());
+                            throw exception;
+                        }
+                }
+            }
+            catch (NullReferenceException)
+            {
+                System.Windows.MessageBox.Show($"处理登录返回失败:{json}", "Debug - 本地网易云喵块", 0, System.Windows.MessageBoxImage.Error);
+                throw;
             }
         }
         public event PropertyChangedEventHandler PropertyChanged;

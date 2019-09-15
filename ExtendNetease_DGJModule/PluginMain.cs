@@ -26,7 +26,7 @@ namespace ExtendNetease_DGJModule
         {
             this.PluginName = "本地网易云喵块";
             try { this.PluginAuth = BiliUtils.GetUserNameByUserId(35744708); }
-            catch { this.PluginAuth = "起名废丶西井"; }
+            catch { this.PluginAuth = "西井丶"; }
             this.PluginCont = "847529602@qq.com";
             this.PluginDesc = "可以添加歌单和登录网易云喵~";
             this.PluginVer = NeteaseMusicApi.Version;
@@ -42,9 +42,9 @@ namespace ExtendNetease_DGJModule
                 MainWindow = new MainWindow();
                 MainWindow.OnLoginStatusChanged(MainConfig.Instance.LoginSession.LoginStatus);
             }
-            catch (Exception)
+            catch (Exception Ex)
             {
-                MessageBox.Show($"插件初始化失败了喵,请将桌面上的错误报告发送给作者（/TДT)/", "本地网易云喵块", 0, MessageBoxImage.Error);
+                MessageBox.Show($"插件初始化失败了喵,请将桌面上的错误报告发送给作者（/TДT)/\n{Ex.ToString()}", "本地网易云喵块", 0, MessageBoxImage.Error);
                 throw;
             }
             VersionChecker vc = new VersionChecker("ExtendNetease_DGJModule");
@@ -86,30 +86,38 @@ namespace ExtendNetease_DGJModule
 
         private void InjectDGJ()
         {
-            Assembly dgjAssembly = Assembly.GetAssembly(typeof(SearchModule)); //如果没有点歌姬插件，插件的构造方法会抛出异常，无需考虑这里的assembly == null的情况
-            Assembly dmAssembly = Assembly.GetAssembly(Application.Current.MainWindow.GetType());
-            Type appType = dmAssembly.ExportedTypes.FirstOrDefault(p => p.FullName == "Bililive_dm.App");
-            ObservableCollection<DMPlugin> Plugins = (ObservableCollection<DMPlugin>)appType.GetField("Plugins", BindingFlags.GetField | BindingFlags.Static | BindingFlags.Public).GetValue(null);
-            DMPlugin dgjPlugin = Plugins.FirstOrDefault(p => p.ToString() == "DGJv3.DGJMain");
-            object dgjWindow = null;
             try
             {
-                dgjWindow = dgjAssembly.DefinedTypes.FirstOrDefault(p => p.Name == "DGJMain").GetField("window", BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dgjPlugin);
+                Assembly dgjAssembly = Assembly.GetAssembly(typeof(SearchModule)); //如果没有点歌姬插件，插件的构造方法会抛出异常，无需考虑这里的assembly == null的情况
+                Assembly dmAssembly = Assembly.GetEntryAssembly();
+                Type appType = dmAssembly.ExportedTypes.FirstOrDefault(p => p.FullName == "Bililive_dm.App");
+                ObservableCollection<DMPlugin> Plugins = (ObservableCollection<DMPlugin>)appType.GetField("Plugins", BindingFlags.GetField | BindingFlags.Static | BindingFlags.Public).GetValue(null);
+                DMPlugin dgjPlugin = Plugins.FirstOrDefault(p => p.ToString() == "DGJv3.DGJMain");
+                object dgjWindow = null;
+                try
+                {
+                    dgjWindow = dgjAssembly.DefinedTypes.FirstOrDefault(p => p.Name == "DGJMain").GetField("window", BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dgjPlugin);
+                }
+                catch (ReflectionTypeLoadException Ex) // 缺少登录中心时
+                {
+                    dgjWindow = Ex.Types.FirstOrDefault(p => p.Name == "DGJMain").GetField("window", BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dgjPlugin);
+                }
+                object searchModules = dgjWindow.GetType().GetProperty("SearchModules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(dgjWindow);
+                ObservableCollection<SearchModule> searchModules2 = (ObservableCollection<SearchModule>)searchModules.GetType().GetProperty("Modules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(searchModules);
+                SearchModule nullModule = (SearchModule)searchModules.GetType().GetProperty("NullModule", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance).GetValue(searchModules);
+                SearchModule lwlModule = searchModules2.FirstOrDefault(p => p != nullModule);
+                if (lwlModule != null)
+                {
+                    Action<string> logHandler = (Action<string>)lwlModule.GetType().GetProperty("_log", BindingFlags.GetProperty | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(lwlModule);
+                    ExtendNeteaseModule.SetLogHandler(logHandler);
+                }
+                searchModules2.Insert(2, ExtendNeteaseModule);
             }
-            catch (ReflectionTypeLoadException Ex) // 缺少登录中心时
+            catch (Exception Ex)
             {
-                dgjWindow = Ex.Types.FirstOrDefault(p => p.Name == "DGJMain").GetField("window", BindingFlags.GetField | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(dgjPlugin);
+                MessageBox.Show($"注入到点歌姬失败了喵\n{Ex.ToString()}", "本地网易云喵块", 0, MessageBoxImage.Error);
+                throw;
             }
-            object searchModules = dgjWindow.GetType().GetProperty("SearchModules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(dgjWindow);
-            ObservableCollection<SearchModule> searchModules2 = (ObservableCollection<SearchModule>)searchModules.GetType().GetProperty("Modules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(searchModules);
-            SearchModule nullModule = (SearchModule)searchModules.GetType().GetProperty("NullModule", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance).GetValue(searchModules);
-            SearchModule lwlModule = searchModules2.FirstOrDefault(p => p != nullModule);
-            if (lwlModule != null)
-            {
-                Action<string> logHandler = (Action<string>)lwlModule.GetType().GetProperty("_log", BindingFlags.GetProperty | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(lwlModule);
-                ExtendNeteaseModule.SetLogHandler(logHandler);
-            }
-            searchModules2.Insert(2, ExtendNeteaseModule);
         }
     }
 
@@ -122,27 +130,34 @@ namespace ExtendNetease_DGJModule
 
         static MainConfig()
         {
-            string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"弹幕姬\plugins\ExtendNetease");
-            if (!Directory.Exists(configPath))
+            try
             {
-                Directory.CreateDirectory(configPath);
-            }
-            ConfigFullPath = Path.Combine(configPath, "MainConfig.cfg");
-            if (File.Exists(ConfigFullPath))
-            {
-                string json = File.ReadAllText(ConfigFullPath);
-                try
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"弹幕姬\plugins\ExtendNetease");
+                if (!Directory.Exists(configPath))
                 {
-                    Instance = JsonConvert.DeserializeObject<MainConfig>(json);
+                    Directory.CreateDirectory(configPath);
                 }
-                catch
+                ConfigFullPath = Path.Combine(configPath, "MainConfig.cfg");
+                if (File.Exists(ConfigFullPath))
+                {
+                    string json = File.ReadAllText(ConfigFullPath);
+                    try
+                    {
+                        Instance = JsonConvert.DeserializeObject<MainConfig>(json);
+                    }
+                    catch
+                    {
+                        Instance = new MainConfig();
+                    }
+                }
+                else
                 {
                     Instance = new MainConfig();
                 }
             }
-            else
+            catch (Exception Ex)
             {
-                Instance = new MainConfig();
+                MessageBox.Show(Ex.ToString());
             }
         }
 
@@ -181,25 +196,10 @@ namespace ExtendNetease_DGJModule
             {
                 Directory.CreateDirectory(assemblyPath);
             }
-            string openSslLibPath = Path.Combine(assemblyPath, "x64");
-            if (!Directory.Exists(openSslLibPath))
-            {
-                Directory.CreateDirectory(openSslLibPath);
-            }
-            string filePath = Path.Combine(assemblyPath, "ManagedOpenSsl64.dll");
+            string filePath = Path.Combine(assemblyPath, "BouncyCastle.Crypto.dll");
             if (!File.Exists(filePath))
             {
-                File.WriteAllBytes(filePath, Properties.Resources.ManagedOpenSsl64);
-            }
-            filePath = Path.Combine(openSslLibPath, "libeay32.dll");
-            if (!File.Exists(filePath))
-            {
-                File.WriteAllBytes(filePath, Properties.Resources.libeay32);
-            }
-            filePath = Path.Combine(openSslLibPath, "ssleay32.dll");
-            if (!File.Exists(filePath))
-            {
-                File.WriteAllBytes(filePath, Properties.Resources.ssleay32);
+                File.WriteAllBytes(filePath, Properties.Resources.BouncyCastle_Crypto);
             }
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
         }
@@ -207,10 +207,10 @@ namespace ExtendNetease_DGJModule
         private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
         {
             string dllName = args.Name.Split(',')[0];
-            if (dllName == "ManagedOpenSsl64")
+            if (dllName == "BouncyCastle.Crypto")
             {
                 string assemblyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"弹幕姬\plugins\Assembly");
-                return Assembly.LoadFrom(Path.Combine(assemblyPath, "ManagedOpenSsl64.dll"));
+                return Assembly.LoadFrom(Path.Combine(assemblyPath, "BouncyCastle.Crypto.dll"));
             }
             else
             {
@@ -226,9 +226,9 @@ namespace ExtendNetease_DGJModule
         {
             string authorName;
             try { authorName = BiliUtils.GetUserNameByUserId(35744708); }
-            catch { authorName = "起名废丶西井"; }
-            SetInfo("本地网易云音乐", authorName, "847529602@qq.com", NeteaseMusicApi.Version, "若有会员/音乐包,登录后可以点320Kbps的音乐");
-            this.GetType().GetProperty("IsPlaylistSupported", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(this, true); // Enable Supporting Playlist
+            catch { authorName = "西井丶"; }
+            SetInfo("本地网易云喵块", authorName, "847529602@qq.com", NeteaseMusicApi.Version, "可以添加歌单和登录网易云喵~");
+            this.GetType().GetProperty("IsPlaylistSupported", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(this, true); // Enable Playlist Supporting
         }
 
         public void SetLogHandler(Action<string> logHandler)
@@ -255,21 +255,21 @@ namespace ExtendNetease_DGJModule
                 }
                 else
                 {
-                    string url = ds.Url;
-                    if (!string.IsNullOrEmpty(url) && songInfo.UserName == "空闲歌单" && songInfo.Lyric.LrcWord.Count < 1)
-                    {
-                        try
-                        {
-                            LyricInfo lyric = _GetLyric(songId);
-                            Lrc lrc = Lrc.InitLrc(lyric?.GetLyricText());
-                            Type songItemType = songInfo.GetType();
-                            songItemType.GetProperty("Lyric", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(songInfo, lrc);
-                        }
-                        catch (Exception Ex)
-                        {
-                            Log($"获取歌词失败了喵:{Ex.Message}");
-                        }
-                    }
+                    //string url = ds.Url;
+                    //if (!string.IsNullOrEmpty(url) && songInfo.UserName == "空闲歌单" && songInfo.Lyric.LrcWord.Count < 1)
+                    //{
+                    //    try
+                    //    {
+                    //        LyricInfo lyric = _GetLyric(songId);
+                    //        Lrc lrc = Lrc.InitLrc(lyric?.GetLyricText());
+                    //        Type songItemType = songInfo.GetType();
+                    //        songItemType.GetProperty("Lyric", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(songInfo, lrc);
+                    //    }
+                    //    catch (Exception Ex)
+                    //    {
+                    //        Log($"获取歌词失败了喵:{Ex.Message}");
+                    //    }
+                    //}
                     return ds.Url;
                 }
             }
@@ -346,7 +346,7 @@ namespace ExtendNetease_DGJModule
                     Log($"以下列出的单曲,网易云暂时没有版权,所以它们被除外了喵~\n{string.Join("\n", cantPlaySongs.Select(p => $"{string.Join("; ", p.Artists.Select(q => q.Name))} - {p.Name}"))}");
                 }
             }
-            return songs.Where(p => p.CanPlay).Select(p => new SongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray())).ToList();
+            return songs.Where(p => p.CanPlay).Select(p => new SongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray(), null)).ToList();
         }
 
         protected override SongInfo Search(string keyword)
