@@ -11,7 +11,7 @@ namespace ExtendNetease_DGJModule
 {
     public static class HttpHelper
     {
-        public const string UserAgent = "DGJModule.NeteaseMusicApi/1.0.5 .NET CLR v4.0.30319";
+        public const string UserAgent = "DGJModule.NeteaseMusicApi/1.0.9 .NET CLR v4.0.30319";
         public static string HttpGet(string url, int timeout = 0, string userAgent = UserAgent, string cookie = null, IDictionary<string, string> headers = null)
         {
             HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
@@ -268,7 +268,7 @@ namespace ExtendNetease_DGJModule
     public class HttpSession
     {
         public CookieContainer Cookie { get; private set; } = new CookieContainer();
-        public const string UserAgent = "DGJModule.NeteaseMusicApi/1.0.5 .NET CLR v4.0.30319";
+        public const string UserAgent = "DGJModule.NeteaseMusicApi/1.0.9 .NET CLR v4.0.30319";
         public Exception LastException { get; private set; } = null;
         public HttpSession() { }
         #region 构造函数重载
@@ -303,8 +303,7 @@ namespace ExtendNetease_DGJModule
         #endregion
         public string HttpGet(Uri url, int timeout = 0, string userAgent = UserAgent, IDictionary<string, string> headers = null)
         {
-            HttpWebRequest request = null;
-            request = WebRequest.Create(url) as HttpWebRequest;
+            HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
             request.ProtocolVersion = HttpVersion.Version11;
             request.Method = "GET";
             if (timeout != 0) request.Timeout = timeout * 1000;
