@@ -118,13 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="libeay32" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\libeay32.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="ManagedOpenSsl64" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\ManagedOpenSsl64.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="ssleay32" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Resources\ssleay32.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  <data name="BouncyCastle_Crypto" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Reference\BouncyCastle.Crypto.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
 </root>
