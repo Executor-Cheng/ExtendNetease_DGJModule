@@ -13,6 +13,10 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using Bililive_dm;
 
 namespace ExtendNetease_DGJModule.NeteaseMusic
 {
@@ -443,11 +447,11 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
         /// 用户昵称
         /// </summary>
         public string UserName { get => _UserName; private set { if (_UserName != value) { _UserName = value; OnPropertyChanged(); } } }
-        private int _UserId;
+        private long _UserId;
         /// <summary>
         /// 用户ID
         /// </summary>
-        public int UserId { get => _UserId; private set { if (_UserId != value) { _UserId = value; OnPropertyChanged(); } } }
+        public long UserId { get => _UserId; private set { if (_UserId != value) { _UserId = value; OnPropertyChanged(); } } }
         /// <summary>
         /// VIP类型(Todo:做成Enum)
         /// </summary>
@@ -682,7 +686,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             }
             else
             {
-                UserId = int.Parse(Regex.Match(fakeJson, @"userId:(\d+)").Groups[1].Value);
+                UserId = long.Parse(Regex.Match(fakeJson, @"userId:(\d+)").Groups[1].Value);
                 UserName = Regex.Match(fakeJson, @"nickname:""(.*?)""").Groups[1].Value;
                 LoginStatus = true;
             }
@@ -702,7 +706,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
             }
             else
             {
-                UserId = int.Parse(Regex.Match(fakeJson, @"userId:(\d+)").Groups[1].Value);
+                UserId = long.Parse(Regex.Match(fakeJson, @"userId:(\d+)").Groups[1].Value);
                 UserName = Regex.Match(fakeJson, @"nickname:""(.*?)""").Groups[1].Value;
                 LoginStatus = true;
             }
@@ -746,7 +750,7 @@ namespace ExtendNetease_DGJModule.NeteaseMusic
                     case 200:
                         {
                             UserName = j["profile"]["nickname"].ToString();
-                            UserId = j["profile"]["userId"].ToObject<int>();
+                            UserId = j["profile"]["userId"].ToObject<long>();
                             VipType = j["profile"]["vipType"].ToObject<int>();
                             LoginStatus = true;
                             break;

@@ -28,24 +28,15 @@ namespace ExtendNetease_DGJModule
                 if (File.Exists(ConfigFullPath))
                 {
                     string json = File.ReadAllText(ConfigFullPath);
-                    try
-                    {
-                        Instance = JsonConvert.DeserializeObject<MainConfig>(json);
-                    }
-                    catch
-                    {
-                        Instance = new MainConfig();
-                    }
-                }
-                else
-                {
-                    Instance = new MainConfig();
+                    Instance = JsonConvert.DeserializeObject<MainConfig>(json);
+                    return;
                 }
             }
-            catch (Exception Ex)
+            catch (Exception e)
             {
-                MessageBox.Show(Ex.ToString());
+                MessageBox.Show(e.ToString());
             }
+            Instance = new MainConfig();
         }
 
         [JsonProperty]

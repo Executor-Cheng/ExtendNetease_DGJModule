@@ -39,9 +39,9 @@ namespace ExtendNetease_DGJModule
                 MessageBox.Show("你还没有安装点歌姬v3插件, 请先安装再使用本插件, 本插件加载将被取消。", "本地网易云喵块", 0, MessageBoxImage.Error);
                 throw;
             }
-            catch (Exception Ex)
+            catch (Exception e)
             {
-                MessageBox.Show($"插件初始化失败了喵,请将桌面上的错误报告发送给作者（/TДT)/\n{Ex.ToString()}", "本地网易云喵块", 0, MessageBoxImage.Error);
+                MessageBox.Show($"插件初始化失败了喵,请将桌面上的错误报告发送给作者（/TДT)/\n{e}", "本地网易云喵块", 0, MessageBoxImage.Error);
                 throw;
             }
             VersionChecker vc = new VersionChecker("ExtendNetease_DGJModule");
@@ -118,7 +118,7 @@ namespace ExtendNetease_DGJModule
             }
             catch (Exception Ex)
             {
-                MessageBox.Show($"注入到点歌姬失败了喵\n{Ex.ToString()}", "本地网易云喵块", 0, MessageBoxImage.Error);
+                MessageBox.Show($"注入到点歌姬失败了喵\n{Ex}", "本地网易云喵块", 0, MessageBoxImage.Error);
                 throw;
             }
         }
