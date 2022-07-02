@@ -4,24 +4,21 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ExtendNetease_DGJModule"
-        xmlns:netease="clr-namespace:ExtendNetease_DGJModule.NeteaseMusic"
+        xmlns:netease="clr-namespace:ExtendNetease_DGJModule.Models"
         mc:Ignorable="d"
-        Title="管理界面 - 本地网易云喵块    用户:未登录" SizeToContent="WidthAndHeight" ResizeMode="CanMinimize" Closing="Window_Closing">
+        Title="管理界面 - 本地网易云喵块    用户:未登录" SizeToContent="WidthAndHeight" ResizeMode="CanMinimize" Closing="Window_Closing" IsEnabled="False">
     <Window.Resources>
         <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
     </Window.Resources>
     <StackPanel Orientation="Horizontal">
         <GroupBox Header="登录" VerticalAlignment="Stretch" Margin="2,2,0,5" Width="270">
             <StackPanel>
-                <DockPanel>
-                    <TextBlock TextWrapping="NoWrap" Text="手机号/邮箱:" VerticalAlignment="Center"/>
-                    <TextBox x:Name="LoginUserNameBox" Height="23" TextWrapping="Wrap" Margin="3,0,0,0" Padding="0,2,0,0" KeyDown="OnEnterKeyDown"/>
-                </DockPanel>
-                <DockPanel Margin="0,3,0,0">
-                    <TextBlock TextWrapping="NoWrap" Text="密码:" VerticalAlignment="Center"/>
-                    <PasswordBox x:Name="LoginPasswordBox" Height="23" Margin="44,0,0,0" Padding="0,2,0,0" KeyDown="OnEnterKeyDown"/>
-                </DockPanel>
-                <Button x:Name="LoginBtn" Content="登录" Margin="0,3,0,0" Height="30" FontSize="14" Click="Login_Click" MouseRightButtonDown="LogOut_Click"/>
+                <GroupBox Header="二维码登录">
+                    <Image x:Name="QRCodeBox" Height="200" Width="200"/>
+                </GroupBox>
+                <Button x:Name="QRCodeLoginBtn" Content="二维码登录" Margin="0,3,0,0" Height="30" FontSize="14" Click="QRCodeLogin_Click"/>
+                <Button x:Name="CookieLoginBtn" Content="Cookie登录" Margin="0,3,0,0" Height="30" FontSize="14" Click="CookieLogin_Click"/>
+                <Button x:Name="LogoutBtn" Content="登出" Margin="0,3,0,0" Height="30" FontSize="14" Click="Logout_Click"/>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="音乐品质" Margin="2,2,2,5">

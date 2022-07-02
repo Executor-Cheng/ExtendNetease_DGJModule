@@ -12,6 +12,8 @@
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
@@ -76,8 +78,12 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="QRCoder, Version=1.4.3.0, Culture=neutral, PublicKeyToken=c4ed5b9ae8358a28, processorArchitecture=MSIL">
+      <HintPath>..\packages\QRCoder.1.4.3\lib\net40\QRCoder.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -89,15 +95,52 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BiliUtils.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.CheckMusicStatus.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetCsrfToken.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetLyric.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetUserInfo.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.Login.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.Logout.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.SearchPlaylistAsync.cs" />
+    <Compile Include="Apis\NeteaseMusicApisGetPlayerUrlResponse.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetPlayList.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetSongsUrl.cs" />
+    <Compile Include="Clients\HttpClientv2.cs" />
+    <Compile Include="CookieLoginWindow.xaml.cs">
+      <DependentUpon>CookieLoginWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="EnumToBooleanConverter.cs" />
+    <Compile Include="Exceptions\InvalidCookieException.cs" />
+    <Compile Include="Exceptions\LoginFailedException.cs" />
+    <Compile Include="Exceptions\NoSuchPlaylistException.cs" />
+    <Compile Include="Exceptions\PlaylistAccessDeniedException.cs" />
+    <Compile Include="Exceptions\PlaylistException.cs" />
+    <Compile Include="Models\AlbumInfo.cs" />
+    <Compile Include="Apis\BiliApis.GetUserName.cs" />
+    <Compile Include="Apis\DanmujiApis.GetPluginInfo.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.CryptoHelper.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.Search.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.SearchSongs.cs" />
+    <Compile Include="Models\ArtistInfo.cs" />
+    <Compile Include="Models\DownloadSongInfo.cs" />
+    <Compile Include="Exceptions\UnknownResponseException.cs" />
     <Compile Include="ExtendNeteaseModule.cs" />
-    <Compile Include="HttpClass.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.PostByteArrayContent.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.PostEmptyContent.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.PostHttpContent.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.PostJsonContent.cs" />
+    <Compile Include="Extensions\HttpClientExtensions.PostStringContent.cs" />
+    <Compile Include="Models\LyricInfo.cs" />
     <Compile Include="MainConfig.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="NeteaseMusicApi.cs" />
+    <Compile Include="Models\PlaylistInfo.cs" />
+    <Compile Include="Models\PluginInfo.cs" />
+    <Compile Include="Models\UnikeyStatus.cs" />
+    <Compile Include="Models\UserInfo.cs" />
+    <Compile Include="Services\NeteaseSession.cs" />
     <Compile Include="PluginMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -105,13 +148,23 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Models\Quality.cs" />
+    <Compile Include="Models\SearchType.cs" />
+    <Compile Include="Services\ConfigService.cs" />
+    <Compile Include="Services\DependencyExtractor.cs" />
+    <Compile Include="Services\QRCodeLoginService.cs" />
+    <Compile Include="Services\VersionService.cs" />
+    <Compile Include="Models\SongInfo.cs" />
     <Compile Include="Utils.cs" />
-    <Compile Include="VersionChecker.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="CookieLoginWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -129,6 +182,9 @@
   <ItemGroup>
     <None Include="Reference\Bililive_dm.exe" />
     <None Include="Reference\DGJv3.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bin\Debug\QRCoder.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -121,4 +121,7 @@
   <data name="BouncyCastle_Crypto" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Reference\BouncyCastle.Crypto.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="QRCoder" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\bin\Debug\QRCoder.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
 </root>

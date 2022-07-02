@@ -4,7 +4,6 @@ using System.Windows.Data;
 
 namespace ExtendNetease_DGJModule
 {
-    //Refer:http://www.cnblogs.com/gaoshang212/p/4973300.html
     public class EnumToBooleanConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

@@ -1,63 +1,53 @@
 ﻿using DGJv3;
-using ExtendNetease_DGJModule.NeteaseMusic;
-using Newtonsoft.Json.Linq;
+using ExtendNetease_DGJModule.Apis;
+using ExtendNetease_DGJModule.Clients;
+using ExtendNetease_DGJModule.Models;
+using ExtendNetease_DGJModule.Services;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
-using SongInfo = DGJv3.SongInfo;
+using System.Threading.Tasks;
+using DGJSongInfo = DGJv3.SongInfo;
+using SongInfo = ExtendNetease_DGJModule.Models.SongInfo;
 
 namespace ExtendNetease_DGJModule
 {
     public class ExtendNeteaseModule : SearchModule
     {
-        static ExtendNeteaseModule()
+        private readonly IDictionary<long, LyricInfo> _lyricCache;
+
+        private readonly IDictionary<Tuple<long, Quality>, DownloadSongInfo> _downloadCache;
+
+        private readonly ConfigService _config;
+
+        private readonly HttpClientv2 _client;
+
+        public ExtendNeteaseModule(PluginMain plugin, ConfigService config, HttpClientv2 client)
         {
-            string assemblyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"弹幕姬\plugins\Assembly");
-            if (!Directory.Exists(assemblyPath))
-            {
-                Directory.CreateDirectory(assemblyPath);
-            }
-            string filePath = Path.Combine(assemblyPath, "BouncyCastle.Crypto.dll");
-            if (!File.Exists(filePath))
-            {
-                File.WriteAllBytes(filePath, Properties.Resources.BouncyCastle_Crypto);
-            }
-            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
-        }
-
-        private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
-        {
-            string dllName = args.Name.Split(',')[0];
-            if (dllName == "BouncyCastle.Crypto")
-            {
-                string assemblyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), @"弹幕姬\plugins\Assembly");
-                return Assembly.LoadFrom(Path.Combine(assemblyPath, "BouncyCastle.Crypto.dll"));
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        private IDictionary<long, LyricInfo> LyricCache { get; } = new Dictionary<long, LyricInfo>();
-
-        private List<DownloadSongInfo> DownloadSongInfoCache { get; } = new List<DownloadSongInfo>();
-
-        public ExtendNeteaseModule()
-        {
-            string authorName;
-            try { authorName = BiliUtils.GetUserNameByUserId(35744708); }
-            catch { authorName = "西井丶"; }
-            SetInfo("本地网易云喵块", authorName, "847529602@qq.com", NeteaseMusicApi.Version, "可以添加歌单和登录网易云喵~");
-            this.GetType().GetProperty("IsPlaylistSupported", BindingFlags.SetProperty | BindingFlags.Public | BindingFlags.Instance).SetValue(this, true); // Enable Playlist Supporting
+            SetInfo("本地网易云喵块", "西井丶", "847529602@qq.com", plugin.PluginVer, "可以添加歌单和登录网易云喵~");
+            this.IsPlaylistSupported = true; // Enable Playlist Supporting
+            _config = config;
+            _client = client;
+            _lyricCache = new ConcurrentDictionary<long, LyricInfo>();
+            _downloadCache = new ConcurrentDictionary<Tuple<long, Quality>, DownloadSongInfo>();
         }
 
         public void SetLogHandler(Action<string> logHandler)
         {
             this.GetType().GetProperty("_log", BindingFlags.SetProperty | BindingFlags.NonPublic | BindingFlags.Instance).SetValue(this, logHandler);
+        }
+
+        private void AddSongItemToCache(Tuple<long, Quality> key, DownloadSongInfo value)
+        {
+            _downloadCache[key] = value;
+            if (_downloadCache.Count > 50)
+            {
+                _downloadCache.Remove(_downloadCache.FirstOrDefault());
+            }
         }
 
         protected override DownloadStatus Download(SongItem item)
@@ -69,24 +59,33 @@ namespace ExtendNetease_DGJModule
         {
             try
             {
-                long songId = long.Parse(songInfo.SongId);
-                DownloadSongInfo ds = MainConfig.Instance.LoginSession.LoginStatus ?
-                _GetDownloadSongInfo(MainConfig.Instance.LoginSession, songId, MainConfig.Instance.Quality) :
-                _GetDownloadSongInfo(songId, MainConfig.Instance.Quality);
-                if (ds != null)
+                if (long.TryParse(songInfo.SongId, out long songId))
                 {
-                    if (ds.Type.ToLower() == "mp3")
+                    Quality quality = _config.Config?.Quality ?? Quality.HighQuality;
+                    Tuple<long, Quality> key = new Tuple<long, Quality>(songId, quality);
+                    if (!_downloadCache.TryGetValue(key, out DownloadSongInfo downloadInfo))
                     {
-                        return ds.Url;
+                        DownloadSongInfo[] songs = Task.Factory.StartNew(() => NeteaseMusicApis.GetSongsUrlAsync(_client, new long[1] { songId }, quality).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+                        if (songs.Length != 0)
+                        {
+                            downloadInfo = songs[0];
+                            if (downloadInfo.Type.Equals("mp3", StringComparison.OrdinalIgnoreCase))
+                            {
+                                AddSongItemToCache(key, downloadInfo);
+                                return downloadInfo.Url;
+                            }
+                            Log($"由于点歌姬目前只支持播放mp3格式,当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 格式:{downloadInfo.Type} 无法播放喵");
+                        }
+                        else
+                        {
+                            Log("获取下载链接失败了喵(服务器未返回下载链接)");
+                        }
+                        return null;
                     }
-                    Log($"由于点歌姬目前只支持播放mp3格式,当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 格式:{ds.Type} 无法播放喵");
-                }
-                else
-                {
-                    Log($"获取下载链接失败了喵(服务器未返回下载链接)");
+                    return downloadInfo.Url;
                 }
             }
-            catch (WebException e)
+            catch (HttpRequestException e)
             {
                 Log($"获取下载链接失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
             }
@@ -103,62 +102,39 @@ namespace ExtendNetease_DGJModule
             throw new NotSupportedException();
         }
 
-        protected override string GetLyricById(string Id)
+        protected override string GetLyricById(string id)
         {
-            long id = long.Parse(Id);
-            LyricInfo lyric = null;
-            try
+            if (long.TryParse(id, out long songId))
             {
-                lyric = _GetLyric(id);
+                return GetLyricWithLogging(songId)?.GetLyricText();
             }
-            catch (WebException e)
-            {
-                Log($"获取歌词失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
-            }
-            catch (Exception e)
-            {
-                Log($"获取歌词失败了喵:{e.Message}");
-            }
-            return lyric?.GetLyricText();
+            return null;
         }
 
-        protected override List<SongInfo> GetPlaylist(string keyword)
+        protected override List<DGJSongInfo> GetPlaylist(string keyword)
+        {
+            return Task.Factory.StartNew(() => GetPlaylistCore(keyword)).GetAwaiter().GetResult();
+        }
+
+        private List<DGJSongInfo> GetPlaylistCore(string keyword)
         {
             try
             {
-                NeteaseMusic.SongInfo[] songs;
+                SongInfo[] songs;
                 if (long.TryParse(keyword, out long id))
                 {
-                    songs = MainConfig.Instance.LoginSession.LoginStatus ?
-                        NeteaseMusicApi.GetPlayList(MainConfig.Instance.LoginSession, id) :
-                        NeteaseMusicApi.GetPlayList(id);
+                    songs = NeteaseMusicApis.GetPlaylistAsync(_client, id).ConfigureAwait(false).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    string json = NeteaseMusicApi.Search(keyword, SearchType.SongList, 1);
-                    JObject j = JObject.Parse(json);
-                    if (j["code"].ToObject<int>() == 200)
+                    PlaylistInfo[] playlists = NeteaseMusicApis.SearchPlaylistsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                    if (playlists.Length != 0)
                     {
-                        id = j["result"]["playlists"].Select(p => p["id"].ToObject<long>()).FirstOrDefault();
-                        if (id > 0)
-                        {
-                            songs = MainConfig.Instance.LoginSession.LoginStatus ?
-                                NeteaseMusicApi.GetPlayList(MainConfig.Instance.LoginSession, id) :
-                                NeteaseMusicApi.GetPlayList(id);
-                        }
-                        else
-                        {
-                            Log("在获取歌单时收到了未知的服务器返回喵:" + json);
-                            return null;
-                        }
+                        songs = NeteaseMusicApis.GetPlaylistAsync(_client, playlists[0].Id).ConfigureAwait(false).GetAwaiter().GetResult();
                     }
-                    else
-                    {
-                        Log("在获取歌单时收到了未知的服务器返回喵:" + json);
-                        return null;
-                    }
+                    return null;
                 }
-                NeteaseMusic.SongInfo[] cantPlaySongs = songs.Where(p => !p.CanPlay).ToArray();
+                SongInfo[] cantPlaySongs = songs.Where(p => !p.CanPlay).ToArray();
                 if (cantPlaySongs.Length > 0)
                 {
                     if (songs.Length == cantPlaySongs.Length)
@@ -168,9 +144,9 @@ namespace ExtendNetease_DGJModule
                     }
                     Log($"以下列出的单曲,网易云暂时没有版权,所以它们被除外了喵~\n{string.Join("\n", cantPlaySongs.Select(p => $"{string.Join("; ", p.Artists.Select(q => q.Name))} - {p.Name}"))}");
                 }
-                return songs.Where(p => p.CanPlay).Select(p => new SongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray(), null)).ToList();
+                return songs.Where(p => p.CanPlay).Select(p => new DGJSongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray(), null)).ToList();
             }
-            catch (WebException e)
+            catch (HttpRequestException e)
             {
                 Log($"获取歌单失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
             }
@@ -181,33 +157,28 @@ namespace ExtendNetease_DGJModule
             return null;
         }
 
-        protected override SongInfo Search(string keyword)
+        protected override DGJSongInfo Search(string keyword)
+        {
+            return Task.Factory.StartNew(() => SearchCore(keyword)).GetAwaiter().GetResult();
+        }
+
+        private DGJSongInfo SearchCore(string keyword)
         {
             try
             {
-                NeteaseMusic.SongInfo[] songs = MainConfig.Instance.LoginSession.LoginStatus ?
-                    NeteaseMusicApi.SearchSongs(MainConfig.Instance.LoginSession, keyword, 1) :
-                    NeteaseMusicApi.SearchSongs(keyword, 1);
-                NeteaseMusic.SongInfo song = songs.FirstOrDefault();
-                if (song?.CanPlay == true)
+                SongInfo[] songs = NeteaseMusicApis.SearchSongsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                if (songs.Length != 0)
                 {
-                    LyricInfo lyric = null;
-                    try
+                    SongInfo song = songs[0];
+                    if (song.CanPlay)
                     {
-                        lyric = _GetLyric(song.Id);
+                        LyricInfo lyric = GetLyricWithLogging(song.Id);
+                        return new DGJSongInfo(this, song.Id.ToString(), song.Name, song.Artists?.Select(p => p.Name).ToArray() ?? Array.Empty<string>(), lyric?.GetLyricText());
                     }
-                    catch (Exception e)
-                    {
-                        Log($"获取歌词失败了喵:{e.Message}");
-                    }
-                    return new SongInfo(this, song.Id.ToString(), song.Name, song.Artists.Select(p => p.Name).ToArray(), lyric?.GetLyricText());
-                }
-                else
-                {
                     Log($"{song.ArtistNames} - {song.Name} : 暂无版权喵");
                 }
             }
-            catch (WebException e)
+            catch (HttpRequestException e)
             {
                 Log($"搜索单曲失败了喵:{e.Message}\r\n这是由于网络原因导致搜索失败, 如果多次出现, 请检查你的网络连接喵。");
             }
@@ -218,36 +189,35 @@ namespace ExtendNetease_DGJModule
             return null;
         }
 
-        private LyricInfo _GetLyric(long id, bool useCache = true)
+        private LyricInfo GetLyricWithLogging(long songId)
         {
-            if (!useCache || !LyricCache.ContainsKey(id))
+            try
             {
-                LyricInfo lyric = NeteaseMusicApi.GetLyric(id);
-                LyricCache[id] = lyric;
+                return GetLyricCore(songId);
             }
-            return LyricCache[id];
+            catch (HttpRequestException e)
+            {
+                Log($"获取歌词失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
+            }
+            catch (Exception e)
+            {
+                Log($"获取歌词失败了喵:{e.Message}");
+            }
+            return null;
         }
 
-        private DownloadSongInfo _GetDownloadSongInfo(long id, Quality quality, bool useCache = true)
-            => _GetDownloadSongInfo(null, id, quality, useCache);
-
-        private DownloadSongInfo _GetDownloadSongInfo(NeteaseSession session, long id, Quality quality, bool useCache = true)
+        private LyricInfo GetLyricCore(long songId)
         {
-            DownloadSongInfo dsi;
-            lock (DownloadSongInfoCache)
+            if (!_lyricCache.TryGetValue(songId, out LyricInfo lyric))
             {
-                DownloadSongInfoCache.RemoveAll(p => p.ExpireTime < DateTime.Now);
-                dsi = DownloadSongInfoCache.Find(p => p.Id == id && p.RequestQuality == quality);
-            }
-            if (!useCache || dsi == null)
-            {
-                IDictionary<long, DownloadSongInfo> dss = NeteaseMusicApi.GetSongsUrl(session, MainConfig.Instance.Quality, songIds: id);
-                if (dss.TryGetValue(id, out dsi))
+                lyric = Task.Factory.StartNew(() => NeteaseMusicApis.GetLyricAsync(_client, songId).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+                _lyricCache[songId] = lyric;
+                if (_lyricCache.Count > 100)
                 {
-                    DownloadSongInfoCache.Add(dsi);
+                    _lyricCache.Remove(_lyricCache.FirstOrDefault());
                 }
             }
-            return dsi;
+            return lyric;
         }
     }
 }
