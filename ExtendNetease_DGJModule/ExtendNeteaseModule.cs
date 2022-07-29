@@ -1,11 +1,13 @@
 ﻿using DGJv3;
 using ExtendNetease_DGJModule.Apis;
 using ExtendNetease_DGJModule.Clients;
+using ExtendNetease_DGJModule.Extensions;
 using ExtendNetease_DGJModule.Models;
 using ExtendNetease_DGJModule.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -30,6 +32,7 @@ namespace ExtendNetease_DGJModule
         {
             SetInfo("本地网易云喵块", "西井丶", "847529602@qq.com", plugin.PluginVer, "可以添加歌单和登录网易云喵~");
             this.IsPlaylistSupported = true; // Enable Playlist Supporting
+            this.IsHandleDownlaod = true;
             _config = config;
             _client = client;
             _lyricCache = new ConcurrentDictionary<long, LyricInfo>();
@@ -50,9 +53,27 @@ namespace ExtendNetease_DGJModule
             }
         }
 
-        protected override DownloadStatus Download(SongItem item)
+        protected override DownloadStatus Download(SongItem songInfo)
         {
-            throw new NotImplementedException();
+            try
+            {
+                Task.Factory.StartNew(() => DownloadCore(songInfo)).GetAwaiter().GetResult();
+                return DownloadStatus.Success;
+            }
+            catch (Exception e)
+            {
+                Log($"当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 暂时无法下载喵, 原因:{e.Message}");
+                return DownloadStatus.Failed;
+            }
+        }
+
+        private void DownloadCore(SongItem songInfo)
+        {
+            string url = GetDownloadUrl(songInfo);
+            Log($"已获取 {string.Join(";", songInfo.Singers)} - {songInfo.SongName} 的下载链接:{url}");
+            using Stream stream = _client.GetStreamAsync(url).ConfigureAwait(false).GetAwaiter().GetResult();
+            using FileStream fs = new FileStream(songInfo.FilePath, FileMode.Create);
+            stream.CopyTo(fs);
         }
 
         protected override string GetDownloadUrl(SongItem songInfo)

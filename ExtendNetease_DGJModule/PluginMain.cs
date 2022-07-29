@@ -35,8 +35,9 @@ namespace ExtendNetease_DGJModule
             this.PluginVer = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
             _client = new HttpClientv2();
             _client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
-            //_client.DefaultRequestHeaders.UserAgent.ParseAdd($"DGJModule.NeteaseMusicApi/{this.PluginVer} .NET CLR v4.0.30319");
-            _client.DefaultRequestHeaders.UserAgent.ParseAdd($"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.30 Safari/537.36");
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd($"DGJModule.NeteaseMusicApi/{this.PluginVer} .NET CLR v4.0.30319");
+            _client.DefaultRequestHeaders.Referrer = new Uri("https://music.163.com/");
+            //_client.DefaultRequestHeaders.UserAgent.ParseAdd($"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.30 Safari/537.36");
             _config = new ConfigService();
             _session = new NeteaseSession(_config, _client);
             _dependencyExtractor = new DependencyExtractor();
