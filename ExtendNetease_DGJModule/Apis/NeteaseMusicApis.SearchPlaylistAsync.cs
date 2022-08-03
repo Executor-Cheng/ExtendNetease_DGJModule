@@ -15,7 +15,7 @@ namespace ExtendNetease_DGJModule.Apis
             JObject root = (JObject)await SearchAsync(client, keywords, SearchType.SongList, pageSize, offset, token).ConfigureAwait(false);
             if (root["code"].ToObject<int>() == 200)
             {
-                return root["result"]["playlists"].Select(p => new PlaylistInfo(p)).ToArray();
+                return root["result"]["playlists"].Select(PlaylistInfo.Parse).ToArray();
             }
             throw new UnknownResponseException(root);
         }

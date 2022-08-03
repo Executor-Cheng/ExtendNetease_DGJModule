@@ -35,8 +35,7 @@ namespace ExtendNetease_DGJModule
             this.PluginVer = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
             _client = new HttpClientv2();
             _client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
-            //_client.DefaultRequestHeaders.UserAgent.ParseAdd($"DGJModule.NeteaseMusicApi/{this.PluginVer} .NET CLR v4.0.30319");
-            _client.DefaultRequestHeaders.UserAgent.ParseAdd($"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.30 Safari/537.36");
+            _client.DefaultRequestHeaders.UserAgent.ParseAdd($"DGJModule.NeteaseMusicApi/{this.PluginVer} .NET CLR v4.0.30319");
             _config = new ConfigService();
             _session = new NeteaseSession(_config, _client);
             _dependencyExtractor = new DependencyExtractor();
@@ -155,7 +154,7 @@ namespace ExtendNetease_DGJModule
                 ObservableCollection<SearchModule> searchModules2 = (ObservableCollection<SearchModule>)searchModules.GetType().GetProperty("Modules", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public).GetValue(searchModules);
                 SearchModule nullModule = (SearchModule)searchModules.GetType().GetProperty("NullModule", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance).GetValue(searchModules);
                 SearchModule lwlModule = searchModules2.FirstOrDefault(p => p != nullModule);
-                ExtendNeteaseModule module = new ExtendNeteaseModule(this, _config, _client);
+                ExtendNeteaseModule module = new ExtendNeteaseModule(this, _session, _config, _client);
                 if (lwlModule != null)
                 {
                     Action<string> logHandler = (Action<string>)lwlModule.GetType().GetProperty("_log", BindingFlags.GetProperty | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(lwlModule);

@@ -1,4 +1,5 @@
-﻿using ExtendNetease_DGJModule.Extensions;
+﻿using ExtendNetease_DGJModule.Crypto;
+using ExtendNetease_DGJModule.Extensions;
 using ExtendNetease_DGJModule.Models;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
@@ -11,7 +12,7 @@ namespace ExtendNetease_DGJModule.Apis
     public static partial class NeteaseMusicApis
     {
         /// <summary>
-        /// 获取版权以及下载链接
+        /// 获取歌曲下载链接
         /// </summary>
         /// <param name="session"></param>
         /// <param name="bitRate"></param>
@@ -24,8 +25,8 @@ namespace ExtendNetease_DGJModule.Apis
                 ["ids"] = songIds,
                 ["br"] = (int)bitRate
             };
-            CryptoHelper.EApiEncryptedData encrypted = CryptoHelper.EApiEncrypt(data, "/api/song/enhance/player/url");
-            return client.PostAsync("https://interface3.music.163.com/eapi/song/enhance/player/url", encrypted.GetContent(), token).GetJsonAsync(token);
+            CryptoHelper.WebApiEncryptedData encrypted = CryptoHelper.WebApiEncrypt(data);
+            return client.PostAsync("https://music.163.com/weapi/song/enhance/player/url", encrypted.GetContent(), token).GetJsonAsync(token);
         }
     }
 }

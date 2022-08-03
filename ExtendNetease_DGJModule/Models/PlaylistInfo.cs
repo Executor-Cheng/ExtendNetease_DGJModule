@@ -4,14 +4,9 @@ namespace ExtendNetease_DGJModule.Models
 {
     public class PlaylistInfo
     {
-        public long Id { get; set; }
+        public long Id { get; }
 
-        public string Name { get; set; }
-
-        public PlaylistInfo()
-        {
-
-        }
+        public string Name { get; }
 
         public PlaylistInfo(long id, string name)
         {
@@ -19,10 +14,9 @@ namespace ExtendNetease_DGJModule.Models
             Name = name;
         }
 
-        public PlaylistInfo(JToken node)
+        public static PlaylistInfo Parse(JToken node)
         {
-            Id = node["id"].ToObject<long>();
-            Name = null;
+            return new PlaylistInfo(node["id"].ToObject<long>(), null);
         }
     }
 }

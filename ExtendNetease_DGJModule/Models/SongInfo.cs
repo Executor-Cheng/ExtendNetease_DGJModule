@@ -7,25 +7,33 @@ namespace ExtendNetease_DGJModule.Models
     public class SongInfo
     {
         public long Id { get; }
+
         public string Name { get; }
+
         public ArtistInfo[] Artists { get; }
-        public string ArtistNames => Artists == null ? null : string.Join(",", Artists.Select(p => p.Name));
+
         public AlbumInfo Album { get; }
+
         public TimeSpan Duration { get; }
-        public bool CanPlay { get; set; }
-        public bool NeedPaymentToDownload { get; } // Fee == 8 | > 0
-        public SongInfo(long id, string name, ArtistInfo[] artists, AlbumInfo album, TimeSpan duration, bool needPaymentToDownload)
+
+        public bool HasCopyright { get; }
+
+        public bool NeedPaymentToDownload { get; } // Fee == 1
+
+        public SongInfo(long id, string name, ArtistInfo[] artists, AlbumInfo album, TimeSpan duration, bool hasCopyright, bool needPaymentToDownload)
         {
             Id = id;
             Name = name;
             Artists = artists;
             Album = album;
             Duration = duration;
+            HasCopyright = hasCopyright;
             NeedPaymentToDownload = needPaymentToDownload;
         }
-        public SongInfo(JToken jt) : this(jt["id"].ToObject<long>(), jt["name"].ToString(), (jt["artists"] ?? jt["ar"]).Select(p => new ArtistInfo(p)).ToArray(), new AlbumInfo(jt["album"] ?? jt["al"]), TimeSpan.FromMilliseconds((jt["duration"] ?? jt["dt"]).ToObject<double>()), jt["fee"].ToObject<bool>())
-        {
 
+        public static SongInfo Parse(JToken node)
+        {
+            return new SongInfo(node["id"].ToObject<long>(), node["name"].ToString(), (node["artists"] ?? node["ar"]).Select(ArtistInfo.Parse).ToArray(), AlbumInfo.Parse(node["album"] ?? node["al"]), TimeSpan.FromMilliseconds((node["duration"] ?? node["dt"]).ToObject<double>()), node["noCopyrightRcmd"]?.HasValues != true, node["fee"].ToObject<int>() == 1);
         }
     }
 }

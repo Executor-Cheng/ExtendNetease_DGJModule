@@ -8,7 +8,7 @@ namespace ExtendNetease_DGJModule.Models
 {
     public class LyricInfo
     {
-        private static Regex TimeSpanRegex = new Regex(@"(\d+(?::))?(\d+)((?:\.)\d{1,6})?", RegexOptions.Compiled);
+        private static readonly Regex TimeSpanRegex = new Regex(@"(\d+(?::))?(\d+)((?:\.)\d{1,6})?", RegexOptions.Compiled);
 
         public string Title { get; private set; }
 
