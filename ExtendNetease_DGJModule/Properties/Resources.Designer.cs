@@ -63,16 +63,6 @@ namespace ExtendNetease_DGJModule.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] BouncyCastle_Crypto {
-            get {
-                object obj = ResourceManager.GetObject("BouncyCastle_Crypto", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
         internal static byte[] QRCoder {
             get {
                 object obj = ResourceManager.GetObject("QRCoder", resourceCulture);

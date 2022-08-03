@@ -26,6 +26,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -35,6 +36,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -63,10 +65,6 @@
       <HintPath>Reference\Bililive_dm.exe</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="BouncyCastle.Crypto, Version=1.8.5.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
-      <HintPath>..\packages\BouncyCastle.1.8.5\lib\BouncyCastle.Crypto.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="DGJv3">
       <HintPath>Reference\DGJv3.dll</HintPath>
       <Private>False</Private>
@@ -80,10 +78,12 @@
     <Reference Include="PresentationFramework" />
     <Reference Include="QRCoder, Version=1.4.3.0, Culture=neutral, PublicKeyToken=c4ed5b9ae8358a28, processorArchitecture=MSIL">
       <HintPath>..\packages\QRCoder.1.4.3\lib\net40\QRCoder.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.Windows" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -98,6 +98,7 @@
     <Compile Include="Apis\NeteaseMusicApis.CheckMusicStatus.cs" />
     <Compile Include="Apis\NeteaseMusicApis.GetCsrfToken.cs" />
     <Compile Include="Apis\NeteaseMusicApis.GetLyric.cs" />
+    <Compile Include="Apis\NeteaseMusicApis.GetSongDetail.cs" />
     <Compile Include="Apis\NeteaseMusicApis.GetUserInfo.cs" />
     <Compile Include="Apis\NeteaseMusicApis.Login.cs" />
     <Compile Include="Apis\NeteaseMusicApis.Logout.cs" />
@@ -109,16 +110,19 @@
     <Compile Include="CookieLoginWindow.xaml.cs">
       <DependentUpon>CookieLoginWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Crypto\CryptoHelper.cs" />
+    <Compile Include="Crypto\RsaHelper.cs" />
+    <Compile Include="Crypto\RSANoPadding.cs" />
     <Compile Include="EnumToBooleanConverter.cs" />
     <Compile Include="Exceptions\InvalidCookieException.cs" />
     <Compile Include="Exceptions\LoginFailedException.cs" />
     <Compile Include="Exceptions\NoSuchPlaylistException.cs" />
+    <Compile Include="Exceptions\NoSuchSongException.cs" />
     <Compile Include="Exceptions\PlaylistAccessDeniedException.cs" />
     <Compile Include="Exceptions\PlaylistException.cs" />
     <Compile Include="Models\AlbumInfo.cs" />
     <Compile Include="Apis\BiliApis.GetUserName.cs" />
     <Compile Include="Apis\DanmujiApis.GetPluginInfo.cs" />
-    <Compile Include="Apis\NeteaseMusicApis.CryptoHelper.cs" />
     <Compile Include="Apis\NeteaseMusicApis.Search.cs" />
     <Compile Include="Apis\NeteaseMusicApis.SearchSongs.cs" />
     <Compile Include="Models\ArtistInfo.cs" />
@@ -177,14 +181,11 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Reference\BouncyCastle.Crypto.dll" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Reference\Bililive_dm.exe" />
     <None Include="Reference\DGJv3.dll" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="bin\Debug\QRCoder.dll" />
+    <None Include="Reference\QRCoder.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

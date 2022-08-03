@@ -2,6 +2,7 @@
 using ExtendNetease_DGJModule.Apis;
 using ExtendNetease_DGJModule.Clients;
 using ExtendNetease_DGJModule.Models;
+using ExtendNetease_DGJModule.NeteaseMusic.Services;
 using ExtendNetease_DGJModule.Services;
 using System;
 using System.Collections.Concurrent;
@@ -22,14 +23,17 @@ namespace ExtendNetease_DGJModule
 
         private readonly IDictionary<Tuple<long, Quality>, DownloadSongInfo> _downloadCache;
 
+        private readonly NeteaseSession _session;
+
         private readonly ConfigService _config;
 
         private readonly HttpClientv2 _client;
 
-        public ExtendNeteaseModule(PluginMain plugin, ConfigService config, HttpClientv2 client)
+        public ExtendNeteaseModule(PluginMain plugin, NeteaseSession session, ConfigService config, HttpClientv2 client)
         {
             SetInfo("本地网易云喵块", "西井丶", "847529602@qq.com", plugin.PluginVer, "可以添加歌单和登录网易云喵~");
             this.IsPlaylistSupported = true; // Enable Playlist Supporting
+            _session = session;
             _config = config;
             _client = client;
             _lyricCache = new ConcurrentDictionary<long, LyricInfo>();
@@ -69,6 +73,11 @@ namespace ExtendNetease_DGJModule
                         if (songs.Length != 0)
                         {
                             downloadInfo = songs[0];
+                            if (downloadInfo.Quality == Quality.Unknown)
+                            {
+                                Log($"当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 由于没有版权/你木有VIP,无法播放喵");
+                                return null;
+                            }
                             if (downloadInfo.Type.Equals("mp3", StringComparison.OrdinalIgnoreCase))
                             {
                                 AddSongItemToCache(key, downloadInfo);
@@ -134,17 +143,17 @@ namespace ExtendNetease_DGJModule
                     }
                     return null;
                 }
-                SongInfo[] cantPlaySongs = songs.Where(p => !p.CanPlay).ToArray();
+                SongInfo[] cantPlaySongs = songs.Where(p => !p.HasCopyright || (p.NeedPaymentToDownload && _session.VipType == 0)).ToArray();
                 if (cantPlaySongs.Length > 0)
                 {
                     if (songs.Length == cantPlaySongs.Length)
                     {
-                        Log("该歌单内所有的单曲,网易云都没有版权,所以歌单添加失败了喵");
+                        Log("该歌单内所有的单曲,网易云都没有版权,或者需要会员才能下载,所以歌单添加失败了喵");
                         return null;
                     }
                     Log($"以下列出的单曲,网易云暂时没有版权,所以它们被除外了喵~\n{string.Join("\n", cantPlaySongs.Select(p => $"{string.Join("; ", p.Artists.Select(q => q.Name))} - {p.Name}"))}");
                 }
-                return songs.Where(p => p.CanPlay).Select(p => new DGJSongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray(), null)).ToList();
+                return songs.Where(p => p.HasCopyright && !p.NeedPaymentToDownload).Select(p => new DGJSongInfo(this, p.Id.ToString(), p.Name, p.Artists.Select(q => q.Name).ToArray(), null)).ToList();
             }
             catch (HttpRequestException e)
             {
@@ -170,12 +179,20 @@ namespace ExtendNetease_DGJModule
                 if (songs.Length != 0)
                 {
                     SongInfo song = songs[0];
-                    if (song.CanPlay)
+                    string artistName = string.Join(",", song.Artists?.Select(p => p.Name) ?? Array.Empty<string>());
+                    if (song.HasCopyright)
                     {
-                        LyricInfo lyric = GetLyricWithLogging(song.Id);
-                        return new DGJSongInfo(this, song.Id.ToString(), song.Name, song.Artists?.Select(p => p.Name).ToArray() ?? Array.Empty<string>(), lyric?.GetLyricText());
+                        if (!song.NeedPaymentToDownload || _session.VipType != 0)
+                        {
+                            LyricInfo lyric = GetLyricWithLogging(song.Id);
+                            return new DGJSongInfo(this, song.Id.ToString(), song.Name, song.Artists?.Select(p => p.Name).ToArray() ?? Array.Empty<string>(), lyric?.GetLyricText());
+                        }
+                        Log($"{artistName} - {song.Name} : 需要会员才可下载喵");
                     }
-                    Log($"{song.ArtistNames} - {song.Name} : 暂无版权喵");
+                    else
+                    {
+                        Log($"{artistName} - {song.Name} : 暂无版权喵");
+                    }
                 }
             }
             catch (HttpRequestException e)

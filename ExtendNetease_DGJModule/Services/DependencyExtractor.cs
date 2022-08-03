@@ -20,12 +20,7 @@ namespace ExtendNetease_DGJModule.Services
             {
                 Directory.CreateDirectory(_dependencyDirectory);
             }
-            string filePath = Path.Combine(_dependencyDirectory, "BouncyCastle.Crypto.dll");
-            if (!File.Exists(filePath))
-            {
-                File.WriteAllBytes(filePath, Properties.Resources.BouncyCastle_Crypto);
-            }
-            filePath = Path.Combine(_dependencyDirectory, "QRCoder.dll");
+            string filePath = Path.Combine(_dependencyDirectory, "QRCoder.dll");
             if (!File.Exists(filePath))
             {
                 File.WriteAllBytes(filePath, Properties.Resources.QRCoder);
@@ -36,10 +31,6 @@ namespace ExtendNetease_DGJModule.Services
         {
             int ix = args.Name.IndexOf(',');
             string dllName = ix == -1 ? args.Name : args.Name.Substring(0, ix);
-            if (dllName == "BouncyCastle.Crypto")
-            {
-                return Assembly.LoadFrom(Path.Combine(_dependencyDirectory, "BouncyCastle.Crypto.dll"));
-            }
             if (dllName == "QRCoder")
             {
                 return Assembly.LoadFrom(Path.Combine(_dependencyDirectory, "QRCoder.dll"));

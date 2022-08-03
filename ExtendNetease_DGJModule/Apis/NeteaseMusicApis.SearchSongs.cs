@@ -1,7 +1,6 @@
 ﻿using ExtendNetease_DGJModule.Exceptions;
 using ExtendNetease_DGJModule.Models;
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -22,16 +21,7 @@ namespace ExtendNetease_DGJModule.Apis
             JObject root = (JObject)await SearchAsync(client, keywords, SearchType.Song, pageSize, offset, token).ConfigureAwait(false);
             if (root["code"].ToObject<int>() == 200)
             {
-                SongInfo[] result = root["result"]["songs"].Select(p => new SongInfo(p)).ToArray();
-                IDictionary<long, bool> canPlayDic = await CheckMusicStatusAsync(client, result.Select(p => p.Id).ToArray(), token);
-                foreach (SongInfo song in result)
-                {
-                    if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
-                    {
-                        song.CanPlay = canPlay;
-                    }
-                }
-                return result;
+                return root["result"]["songs"].Select(SongInfo.Parse).ToArray();
             }
             throw new UnknownResponseException(root);
         }

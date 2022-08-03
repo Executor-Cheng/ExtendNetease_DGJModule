@@ -17,7 +17,7 @@ namespace ExtendNetease_DGJModule.Apis
         public static async Task<DownloadSongInfo[]> GetSongsUrlAsync(HttpClient client, long[] songIds, Quality bitRate = Quality.SuperQuality, CancellationToken token = default)
         {
             JObject j = (JObject)await GetPlayerUrlResponseAsync(client, songIds, bitRate, token).ConfigureAwait(false);
-            return j["data"].Select(p => new DownloadSongInfo(p["id"].ToObject<long>(), p["br"].ToObject<int>(), bitRate, p["url"].ToString(), p["type"].ToString())).ToArray();
+            return j["data"].Select(DownloadSongInfo.Parse).ToArray();
         }
     }
 }

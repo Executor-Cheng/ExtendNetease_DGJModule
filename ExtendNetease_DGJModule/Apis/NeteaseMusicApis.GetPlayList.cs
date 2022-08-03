@@ -33,16 +33,8 @@ namespace ExtendNetease_DGJModule.Apis
             {
                 case 200:
                     {
-                        SongInfo[] result = j["playlist"]["tracks"].Select(p => new SongInfo(p)).ToArray();
-                        IDictionary<long, bool> canPlayDic = await CheckMusicStatusAsync(client, result.Select(p => p.Id).ToArray(), token);
-                        foreach (SongInfo song in result)
-                        {
-                            if (canPlayDic.TryGetValue(song.Id, out bool canPlay))
-                            {
-                                song.CanPlay = canPlay;
-                            }
-                        }
-                        return result;
+                        long[] songIds = j["playlist"]["trackIds"].Select(p => p["id"].ToObject<long>()).ToArray();
+                        return await GetSongDetails(client, songIds, token);
                     }
                 case 401:
                     {
