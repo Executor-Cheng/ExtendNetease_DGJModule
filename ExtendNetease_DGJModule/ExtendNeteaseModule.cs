@@ -7,6 +7,7 @@ using ExtendNetease_DGJModule.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -38,6 +39,7 @@ namespace ExtendNetease_DGJModule
             _client = client;
             _lyricCache = new ConcurrentDictionary<long, LyricInfo>();
             _downloadCache = new ConcurrentDictionary<Tuple<long, Quality>, DownloadSongInfo>();
+            IsHandleDownlaod = true;
         }
 
         public void SetLogHandler(Action<string> logHandler)
@@ -54,12 +56,7 @@ namespace ExtendNetease_DGJModule
             }
         }
 
-        protected override DownloadStatus Download(SongItem item)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override string GetDownloadUrl(SongItem songInfo)
+        protected override DownloadStatus Download(SongItem songInfo)
         {
             try
             {
@@ -70,39 +67,47 @@ namespace ExtendNetease_DGJModule
                     if (!_downloadCache.TryGetValue(key, out DownloadSongInfo downloadInfo))
                     {
                         DownloadSongInfo[] songs = Task.Factory.StartNew(() => NeteaseMusicApis.GetSongsUrlAsync(_client, new long[1] { songId }, quality).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
-                        if (songs.Length != 0)
-                        {
-                            downloadInfo = songs[0];
-                            if (downloadInfo.Quality == Quality.Unknown)
-                            {
-                                Log($"当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 由于没有版权/你木有VIP,无法播放喵");
-                                return null;
-                            }
-                            if (downloadInfo.Type.Equals("mp3", StringComparison.OrdinalIgnoreCase))
-                            {
-                                AddSongItemToCache(key, downloadInfo);
-                                return downloadInfo.Url;
-                            }
-                            Log($"由于点歌姬目前只支持播放mp3格式,当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 格式:{downloadInfo.Type} 无法播放喵");
-                        }
-                        else
+                        if (songs.Length == 0)
                         {
                             Log("获取下载链接失败了喵(服务器未返回下载链接)");
+                            return DownloadStatus.Failed;
                         }
-                        return null;
+                        downloadInfo = songs[0];
+                        if (downloadInfo.Quality == Quality.Unknown)
+                        {
+                            Log($"当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 由于没有版权/你木有VIP,无法播放喵");
+                            return DownloadStatus.Failed;
+                        }
+                        if (!downloadInfo.Type.Equals("mp3", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log($"由于点歌姬目前只支持播放mp3格式,当前单曲:{string.Join(";", songInfo.Singers)} - {songInfo.SongName} 格式:{downloadInfo.Type} 无法播放喵");
+                            return DownloadStatus.Failed;
+                        }
+                        AddSongItemToCache(key, downloadInfo);
                     }
-                    return downloadInfo.Url;
+                    using FileStream fs = File.Create(songInfo.FilePath);
+                    using HttpResponseMessage resp = Task.Factory.StartNew(() => _client.GetAsync(downloadInfo.Url).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+                    using Stream stream = resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+                    stream.CopyTo(fs);
+                    return DownloadStatus.Success;
                 }
             }
             catch (HttpRequestException e)
             {
-                Log($"获取下载链接失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
+                Log($"下载失败了喵:{e.Message}\r\n这是由于网络原因导致获取失败, 如果多次出现, 请检查你的网络连接喵。");
             }
             catch (Exception e)
             {
-                Log($"获取下载链接失败了喵:{e.Message}");
+                Log(songInfo.FilePath);
+                Log($"下载失败了喵:{e}");
             }
-            return null; // 返回null, 点歌姬会自动移除掉当前歌曲
+            return DownloadStatus.Failed; // 返回null, 点歌姬会自动移除掉当前歌曲
+            
+        }
+
+        protected override string GetDownloadUrl(SongItem songInfo)
+        {
+            return null;
         }
 
         [Obsolete("Use GetLyricById instead", true)]

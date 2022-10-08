@@ -263,3 +263,4 @@ __pycache__/
 
 BililiveRecorder.WPF/BuildInfo.cs
 BililiveRecorder.WPF/Nlog.config
+*.wakatime-project
