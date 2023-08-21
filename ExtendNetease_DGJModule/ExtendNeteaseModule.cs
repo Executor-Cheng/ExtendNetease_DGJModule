@@ -175,7 +175,15 @@ namespace ExtendNetease_DGJModule
         {
             try
             {
-                SongInfo[] songs = NeteaseMusicApis.SearchSongsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                SongInfo[] songs = new SongInfo[0];
+                if (long.TryParse(keyword, out long id))
+                {
+                    songs = NeteaseMusicApis.GetSongDetails(_client, new long[1] { id }).ConfigureAwait(false).GetAwaiter().GetResult();
+
+                } else {
+                    songs = NeteaseMusicApis.SearchSongsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                }
+
                 if (songs.Length != 0)
                 {
                     SongInfo song = songs[0];
