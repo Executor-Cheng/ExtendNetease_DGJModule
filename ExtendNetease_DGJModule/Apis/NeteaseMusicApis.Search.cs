@@ -29,7 +29,8 @@ namespace ExtendNetease_DGJModule.Apis
                 ["offset"] = offset
             };
             CryptoHelper.WebApiEncryptedData encrypted = CryptoHelper.WebApiEncrypt(data);
-            return client.PostAsync("https://music.163.com/weapi/cloudsearch/get/web", encrypted.GetContent(), token).GetJsonAsync(token);
+            // return client.PostAsync("https://music.163.com/weapi/cloudsearch/get/web", encrypted.GetContent(), token).GetJsonAsync(token);
+            return client.PostAsync("https://music.163.com/weapi/search/get", encrypted.GetContent(), token).GetJsonAsync(token);
         }
     }
 }

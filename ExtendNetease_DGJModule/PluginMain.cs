@@ -29,7 +29,7 @@ namespace ExtendNetease_DGJModule
         public PluginMain()
         {
             this.PluginName = "本地网易云喵块";
-            this.PluginAuth = "西井丶";
+            this.PluginAuth = "西井QAQ";
             this.PluginCont = "847529602@qq.com";
             this.PluginDesc = "可以添加歌单和登录网易云喵~";
             this.PluginVer = Assembly.GetExecutingAssembly().GetName().Version.ToString(3);

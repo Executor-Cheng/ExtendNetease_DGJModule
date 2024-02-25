@@ -44,7 +44,7 @@ namespace ExtendNetease_DGJModule.Apis
         {
             JObject data = new JObject(new JProperty("csrf_token", GetCsrfToken(client)));
             CryptoHelper.WebApiEncryptedData encrypted = CryptoHelper.WebApiEncrypt(data);
-            JObject root = (JObject)await client.PostAsync($"https://music.163.com/weapi/v1/user/detail/{userId}", encrypted.GetContent(), token).GetJsonAsync(token).ConfigureAwait(false);
+            JObject root = (JObject)await client.PostAsync($"https://music.163.com/api/v1/user/detail/{userId}", encrypted.GetContent(), token).GetJsonAsync(token).ConfigureAwait(false);
             if (root["code"].ToObject<int>() == 200)
             {
                 return new UserInfo()
