@@ -86,7 +86,7 @@ namespace ExtendNetease_DGJModule
                         AddSongItemToCache(key, downloadInfo);
                     }
                     using FileStream fs = File.Create(songInfo.FilePath);
-                    using HttpResponseMessage resp = Task.Factory.StartNew(() => _client.GetAsync(downloadInfo.Url).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+                    using HttpResponseMessage resp = Task.Factory.StartNew(() => _client.GetAsync(downloadInfo.Url).ConfigureAwait(false).GetAwaiter().GetResult()).GetAwaiter().GetResult().EnsureSuccessStatusCode();
                     using Stream stream = resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
                     stream.CopyTo(fs);
                     return DownloadStatus.Success;
@@ -180,7 +180,23 @@ namespace ExtendNetease_DGJModule
         {
             try
             {
-                SongInfo[] songs = NeteaseMusicApis.SearchSongsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                SongInfo[] songs;
+                if (long.TryParse(keyword, out var songId))
+                {
+                    var song = NeteaseMusicApis.GetSongDetail(_client, songId).ConfigureAwait(false).GetAwaiter().GetResult();
+                    if (song != null)
+                    {
+                        songs = new SongInfo[1] { song };
+                    }
+                    else
+                    {
+                        songs = Array.Empty<SongInfo>();
+                    }
+                }
+                else
+                {
+                    songs = NeteaseMusicApis.SearchSongsAsync(_client, keyword, 1).ConfigureAwait(false).GetAwaiter().GetResult();
+                }
                 if (songs.Length != 0)
                 {
                     SongInfo song = songs[0];

@@ -1,6 +1,7 @@
 ﻿using ExtendNetease_DGJModule.Exceptions;
 using ExtendNetease_DGJModule.Models;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -21,7 +22,12 @@ namespace ExtendNetease_DGJModule.Apis
             JObject root = (JObject)await SearchAsync(client, keywords, SearchType.Song, pageSize, offset, token).ConfigureAwait(false);
             if (root["code"].ToObject<int>() == 200)
             {
-                return root["result"]["songs"].Select(SongInfo.Parse).ToArray();
+                var songs = root["result"]["songs"];
+                if (songs != null)
+                {
+                    return songs.Select(SongInfo.Parse).ToArray();
+                }
+                return Array.Empty<SongInfo>();
             }
             throw new UnknownResponseException(root);
         }

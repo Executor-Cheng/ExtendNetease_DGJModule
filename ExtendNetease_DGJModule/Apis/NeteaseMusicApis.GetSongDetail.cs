@@ -29,19 +29,22 @@ namespace ExtendNetease_DGJModule.Apis
             SongInfo[] result = new SongInfo[songIds.Length];
             for (int i = 0; i < songIds.Length;)
             {
+                int taken = Math.Min(1000, songIds.Length - i);
                 KeyValuePair<string, string>[] payload = new KeyValuePair<string, string>[1]
                 {
-                    new KeyValuePair<string, string>("c", JsonConvert.SerializeObject(songIds.Skip(i).Take(Math.Min(1000, songIds.Length - i)).Select(p => new { id = p })))
+                    new KeyValuePair<string, string>("c", JsonConvert.SerializeObject(songIds.Skip(i).Take(taken).Select(p => new { id = p })))
                 };
                 JToken j = await client.PostAsync("https://music.163.com/api/v3/song/detail", new FormUrlEncodedContent(payload), token).GetJsonAsync(token);
                 if (j["code"].ToObject<int>() != 200)
                 {
                     throw new UnknownResponseException(j);
                 }
+                int k = i;
                 foreach (JToken songNode in j["songs"])
                 {
-                    result[i++] = SongInfo.Parse(songNode);
+                    result[k++] = SongInfo.Parse(songNode);
                 }
+                i += taken;
             }
             return result;
         }
