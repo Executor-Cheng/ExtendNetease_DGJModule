@@ -1,12 +1,11 @@
-﻿using ExtendNetease_DGJModule.Apis;
-using ExtendNetease_DGJModule.Clients;
-using ExtendNetease_DGJModule.Models;
-using ExtendNetease_DGJModule.NeteaseMusic.Services;
-using QRCoder;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
+using ExtendNetease_DGJModule.Apis;
+using ExtendNetease_DGJModule.Clients;
+using ExtendNetease_DGJModule.Models;
+using QRCoder;
 
 namespace ExtendNetease_DGJModule.Services
 {
@@ -14,14 +13,11 @@ namespace ExtendNetease_DGJModule.Services
     {
         private readonly HttpClientv2 _client;
 
-        private readonly NeteaseSession _session;
-
         private string _key;
 
-        public QRCodeLoginService(HttpClientv2 client, NeteaseSession session)
+        public QRCodeLoginService(HttpClientv2 client)
         {
             _client = client;
-            _session = session;
         }
 
         public async Task<Bitmap> CreateQRCodeAsync(CancellationToken token = default)

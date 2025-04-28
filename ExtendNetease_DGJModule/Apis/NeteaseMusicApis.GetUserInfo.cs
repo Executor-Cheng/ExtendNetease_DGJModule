@@ -1,13 +1,12 @@
-﻿using ExtendNetease_DGJModule.Clients;
+﻿using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using ExtendNetease_DGJModule.Clients;
 using ExtendNetease_DGJModule.Crypto;
 using ExtendNetease_DGJModule.Exceptions;
 using ExtendNetease_DGJModule.Extensions;
 using ExtendNetease_DGJModule.Models;
 using Newtonsoft.Json.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace ExtendNetease_DGJModule.Apis
 {
@@ -23,19 +22,15 @@ namespace ExtendNetease_DGJModule.Apis
 
         private static async Task<UserInfo> GetUserInfoFromPageAsync(HttpClient client, CancellationToken token = default)
         {
-            string html = await client.GetAsync("https://music.163.com/", token).ForcePlain().GetStringAsync(token).ConfigureAwait(false);
-            Match m = Regex.Match(html, @"GUser\s*=\s*([^;]+);");
-            if (m.Success)
+            var root = await client.GetAsync("https://music.163.com/discover/g/attr", token).GetObjectAsync<JObject>(token).ConfigureAwait(false);
+            var node = root["g_visitor"];
+            if (node != null && node.Type != JTokenType.Null)
             {
-                string js = m.Groups[1].Value;
-                if (js != "{}")
+                return new UserInfo
                 {
-                    return new UserInfo
-                    {
-                        UserId = long.Parse(Regex.Match(js, @"userId:(\d+)").Groups[1].Value),
-                        UserName = Regex.Match(js, @"nickname:""(.*?)""").Groups[1].Value,
-                    };
-                }
+                    UserId = node["userId"].Value<long>(),
+                    UserName = node["nickname"].Value<string>(),
+                };
             }
             throw new InvalidCookieException();
         }

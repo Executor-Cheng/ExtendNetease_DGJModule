@@ -1,21 +1,16 @@
-﻿using ExtendNetease_DGJModule.Clients;
-using ExtendNetease_DGJModule.Exceptions;
-using ExtendNetease_DGJModule.Models;
-using ExtendNetease_DGJModule.NeteaseMusic.Services;
-using ExtendNetease_DGJModule.Services;
-using QRCoder;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using ExtendNetease_DGJModule.Clients;
+using ExtendNetease_DGJModule.Models;
+using ExtendNetease_DGJModule.NeteaseMusic.Services;
+using ExtendNetease_DGJModule.Services;
 
 namespace ExtendNetease_DGJModule
 {
@@ -71,6 +66,7 @@ namespace ExtendNetease_DGJModule
                     try
                     {
                         await _session.LogoutAsync();
+                        _session.SetCookie(null);
                     }
                     catch
                     {
@@ -111,7 +107,7 @@ namespace ExtendNetease_DGJModule
                 _cts.Dispose();
             }
             _cts = new CancellationTokenSource();
-            _qrLoginService = new QRCodeLoginService(_client, _session);
+            _qrLoginService = new QRCodeLoginService(_client);
             _ = UnikeyCheckLoop(_cts.Token);
         }
 
